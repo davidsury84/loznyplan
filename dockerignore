@@ -1,0 +1,15 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+.env
+.env.*
+*.md
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+lozny-plan-v2.html
+lozny-plan.html
+test-*.md
+historicky-*.md

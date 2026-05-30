@@ -1,0 +1,29 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+
+# Environment
+.env
+.env.local
+.env.production
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Editor
+.vscode/
+.idea/
+
+# Build artefacts (Railway / lokální)
+dist/
+build/
+.cache/
+
+# Lockfiles ponechávám (package-lock.json) — Railway je používá pro reprodukovatelnost

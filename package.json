@@ -1,0 +1,20 @@
+{
+  "name": "elkoplast-lozny-plan",
+  "version": "1.0.0",
+  "description": "ELKOPLAST — Ložné plány: webová aplikace pro plánování nákladu a generování přepravenek",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "NODE_ENV=development node server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "compression": "^1.7.4"
+  },
+  "private": true,
+  "author": "ELKOPLAST CZ s.r.o.",
+  "license": "UNLICENSED"
+}
