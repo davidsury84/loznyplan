@@ -12,7 +12,8 @@ RUN npm ci --omit=dev --no-audit --no-fund
 # Aplikace
 COPY server.js ./
 COPY lozny-plan-v3-stohovani.html ./
-COPY elkoplast-lozny-plan-embed.html ./
+# Optional embed file — build succeeds even if not yet committed
+COPY elkoplast-lozny-plan-embed.htm* ./
 
 # Bezpečnost — nespouštět jako root
 USER node
