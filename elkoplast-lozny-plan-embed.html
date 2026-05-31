@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ložné plány ELKOPLAST — vložení (iframe)</title>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       JAK TO POUŽÍT
+       1) Soubor s aplikací (lozny-plan-v3-stohovani.html) nahraj na svůj
+          web/intranet server a sem do src="" doplň jeho adresu.
+       2) Tuhle stránku otevři / vlož do svého portálu.
+
+       ABY APLIKACE DOSÁHLA NA INTERNET (CDN + mapy + geokódování),
+       musí firemní síť / proxy / firewall pustit tyto domény:
+          cdnjs.cloudflare.com          (THREE.js 3D, XLSX, Leaflet)
+          cdn.jsdelivr.net              (Leaflet plugin)
+          fonts.googleapis.com          (písma – CSS)
+          fonts.gstatic.com             (písma – soubory)
+          nominatim.openstreetmap.org   (našeptávač / geokódování adres)
+          router.project-osrm.org       (výpočet trasy)
+          *.tile.openstreetmap.org      (mapové dlaždice)
+
+       FRAMING: server, na kterém je aplikace, NESMÍ posílat hlavičku
+       X-Frame-Options: DENY ani CSP "frame-ancestors", jinak se iframe
+       nezobrazí. (Nejlépe na stejné doméně jako tento portál → funguje
+       i ukládání plánů do prohlížeče.)
+       ════════════════════════════════════════════════════════════════ -->
+
+  <style>
+    html, body { height: 100%; margin: 0; background: #0d1117; }
+
+    /* Responzivní rám: vyplní celé okno a sám se přizpůsobí velikosti.
+       Aplikace si uvnitř řeší vlastní rozvržení a posuvníky (jako mapa). */
+    .loz-frame {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border: 0;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ZMĚŇ src NA ADRESU, KAM NAHRAJEŠ lozny-plan-v3-stohovani.html -->
+  <iframe
+    class="loz-frame"
+    src="https://VAS-SERVER/lozny-plan-v3-stohovani.html"
+    title="Ložné plány ELKOPLAST"
+    allow="clipboard-write; fullscreen; geolocation"
+    loading="lazy"
+    referrerpolicy="no-referrer-when-downgrade"></iframe>
+
+  <!-- ────────────────────────────────────────────────────────────────
+       VARIANTA: vložení do delší stránky portálu (pevná výška sekce)
+       místo přes celé okno – použij tohle místo iframu nahoře:
+
+       <div style="width:100%; max-width:1400px; margin:0 auto;">
+         <iframe
+           src="https://VAS-SERVER/lozny-plan-v3-stohovani.html"
+           title="Ložné plány ELKOPLAST"
+           style="width:100%; height:88vh; min-height:680px; border:0; border-radius:10px;"
+           allow="clipboard-write; fullscreen; geolocation"></iframe>
+       </div>
+
+       POZN. k „sandbox": pokud iframe NEsandboxuješ, jede vše (doporučeno).
+       Když sandbox potřebuješ, MUSÍ obsahovat aspoň tyto tokeny, jinak se
+       aplikace nespustí / nepůjde ukládat:
+         sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-downloads"
+       ──────────────────────────────────────────────────────────────── -->
+
+</body>
+</html>

@@ -1238,6 +1238,11 @@ canvas { display: block; }
           <li>Přepne tě na záložku „1. Objednávka" — vidíš výsledek a můžeš pokračovat výpočtem.</li>
         </ol>
         <p><b>Vzor tabulky:</b> <i>(názvy sloupců nezáleží na velikosti písmen ani podtržítkách)</i></p>
+        <div style="margin:8px 0;padding:8px 12px;border-left:4px solid var(--orange,#f97316);background:rgba(249,115,22,0.08);font-size:11px;color:var(--text);border-radius:4px;">
+          ⚠ <b>Adresa musí být úplná</b>, aby fungoval našeptávač a mapa rozvozu (Nominatim / OSM).<br>
+          Formát: <code>ulice + č.p., PSČ město, země</code> — např. <code>Industriestrasse 12, 6023 Rothenburg, Switzerland</code>.<br>
+          <span style="color:var(--muted);">Pouhé město („Rothenburg LU") nestačí — geokódování selže a vykládka nepůjde umístit na mapu.</span>
+        </div>
         <div style="overflow-x:auto;border:1px solid var(--border);border-radius:6px;margin:8px 0;">
         <table style="width:100%;border-collapse:collapse;font-size:10px;font-family:'IBM Plex Mono',monospace;">
           <thead>
@@ -1255,15 +1260,15 @@ canvas { display: block; }
             </tr>
           </thead>
           <tbody style="color:var(--muted);">
-            <tr><td style="border:1px solid var(--border);padding:5px 8px;">Bieri Alteisen</td><td style="border:1px solid var(--border);padding:5px 8px;">Rothenburg LU</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">1600</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">1200</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">1100</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">200</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">27</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">980</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">0</td><td style="border:1px solid var(--border);padding:5px 8px;">CPR 19.00</td></tr>
-            <tr><td style="border:1px solid var(--border);padding:5px 8px;">Bieri Alteisen</td><td style="border:1px solid var(--border);padding:5px 8px;">Rothenburg LU</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">1200</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">800</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">920</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">105</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">9</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">800</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">0</td><td style="border:1px solid var(--border);padding:5px 8px;">CPR 08.00</td></tr>
-            <tr><td style="border:1px solid var(--border);padding:5px 8px;">Schneider</td><td style="border:1px solid var(--border);padding:5px 8px;">Aarauerstrasse 112, Brugg</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">1600</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">1200</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">1260</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">220</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">10</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">1140</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">0</td><td style="border:1px solid var(--border);padding:5px 8px;">CPR 22.00</td></tr>
+            <tr><td style="border:1px solid var(--border);padding:5px 8px;">Bieri Alteisen GmbH</td><td style="border:1px solid var(--border);padding:5px 8px;">Industriestrasse 12, 6023 Rothenburg, Switzerland</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">1600</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">1200</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">1100</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">200</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">27</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">980</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">0</td><td style="border:1px solid var(--border);padding:5px 8px;">CPR 19.00</td></tr>
+            <tr><td style="border:1px solid var(--border);padding:5px 8px;">Bieri Alteisen GmbH</td><td style="border:1px solid var(--border);padding:5px 8px;">Industriestrasse 12, 6023 Rothenburg, Switzerland</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">1200</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">800</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">920</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">105</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">9</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">800</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">0</td><td style="border:1px solid var(--border);padding:5px 8px;">CPR 08.00</td></tr>
+            <tr><td style="border:1px solid var(--border);padding:5px 8px;">Schneider Umweltservice AG</td><td style="border:1px solid var(--border);padding:5px 8px;">Aarauerstrasse 112, 5200 Brugg, Switzerland</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">1600</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">1200</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">1260</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">220</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">10</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">1140</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">0</td><td style="border:1px solid var(--border);padding:5px 8px;">CPR 22.00</td></tr>
           </tbody>
         </table>
         </div>
         <p><b>Které sloupce jsou povinné a které ne:</b></p>
         <table style="width:100%;border-collapse:collapse;font-size:11px;margin:6px 0;">
-          <tr style="background:rgba(255,255,255,0.04);"><td style="padding:5px 8px;width:130px;"><b>Povinné</b></td><td style="padding:5px 8px;color:var(--muted);">rozměry <code>X_DELKA_MM</code>, <code>Y_SIRKA_MM</code>, <code>Z_VYSKA_MM</code> · adresa <code>ZASTAVKA_ADRESA</code></td></tr>
+          <tr style="background:rgba(255,255,255,0.04);"><td style="padding:5px 8px;width:130px;"><b>Povinné</b></td><td style="padding:5px 8px;color:var(--muted);">rozměry <code>X_DELKA_MM</code>, <code>Y_SIRKA_MM</code>, <code>Z_VYSKA_MM</code> · <b>úplná adresa</b> <code>ZASTAVKA_ADRESA</code> ve formátu <i>ulice + č.p., PSČ + město, země</i> — např. <code>Industriestrasse 12, 6023 Rothenburg, Switzerland</code></td></tr>
           <tr><td style="padding:5px 8px;"><b>Volitelné</b></td><td style="padding:5px 8px;color:var(--muted);"><code>OBJEDNATEL</code> (jinak „Import") · <code>HMOTNOST_KG</code> · <code>POCET</code> (default 1) · <code>HI</code> (vnitřní výška — pro vnoření kontejnerů; jinak 85 % výšky) · <code>VIKO</code> (výška víka v mm) · <code>NAZEV</code> (název typu bedny)</td></tr>
         </table>
         <p style="font-size:11px;color:var(--muted);"><b>Pozn.:</b> Sloupce <code>HI</code> a <code>VIKO</code> ovlivňují, zda do bedny lze něco vnořit. Když je <code>HI &lt; Z_VYSKA_MM</code>, bedna má vnitřní prostor pro menší bednu. Když <code>VIKO &gt; 0</code>, bedna má víko a vnoření se na ní nepoužije.</p>
@@ -1662,6 +1667,9 @@ function flattenStops() {
         name: addr.address,
         orderName: order.name,
         orderColor: order.color,
+        customer: order.customer || '',                // název firmy odběratele
+        orderNo:  order.orderNo  || '',                // číslo objednávky
+        serials:  { ...(addr.serials || {}) },         // výrobní čísla per typeId
         boxes: { ...addr.boxes },
       });
     });
@@ -3452,13 +3460,33 @@ function renderOrders() {
     noInp.placeholder = 'Č. obj.';
     noInp.title = 'Číslo objednávky';
     noInp.value = order.orderNo || '';
-    noInp.style.cssText = 'max-width:120px;flex:0 0 auto;font-family:IBM Plex Mono,monospace;';
+    noInp.style.cssText = 'max-width:140px;flex:0 0 auto;font-family:IBM Plex Mono,monospace;' +
+      'border:2px solid var(--accent,#f0c040);background:rgba(240,192,64,0.10);color:var(--accent,#f0c040);' +
+      'font-weight:700;font-size:13px;padding:5px 9px;border-radius:5px;letter-spacing:0.3px;' +
+      'box-shadow:0 0 0 3px rgba(240,192,64,0.08);';
+    noInp.addEventListener('focus', () => { noInp.style.boxShadow = '0 0 0 4px rgba(240,192,64,0.25)'; });
+    noInp.addEventListener('blur',  () => { noInp.style.boxShadow = '0 0 0 3px rgba(240,192,64,0.08)'; });
     noInp.addEventListener('input', () => { order.orderNo = noInp.value; });
     hdr.appendChild(noInp);
 
+    // Kolonka „Název firmy" — odběratel/zákazník, propisuje se do přepravenky
+    const custInp = document.createElement('input');
+    custInp.className = 'order-name-input';
+    custInp.placeholder = 'Název firmy (odběratel)';
+    custInp.title = 'Název firmy odběratele — zobrazí se v přepravence i v e-mailu';
+    custInp.value = order.customer || '';
+    custInp.style.cssText = 'max-width:240px;flex:0 0 auto;font-family:IBM Plex Mono,monospace;' +
+      'border:2px solid var(--blue,#4d9fff);background:rgba(77,159,255,0.10);color:var(--blue,#4d9fff);' +
+      'font-weight:700;font-size:13px;padding:5px 9px;border-radius:5px;letter-spacing:0.3px;' +
+      'box-shadow:0 0 0 3px rgba(77,159,255,0.08);';
+    custInp.addEventListener('focus', () => { custInp.style.boxShadow = '0 0 0 4px rgba(77,159,255,0.25)'; });
+    custInp.addEventListener('blur',  () => { custInp.style.boxShadow = '0 0 0 3px rgba(77,159,255,0.08)'; });
+    custInp.addEventListener('input', () => { order.customer = custInp.value; });
+    hdr.appendChild(custInp);
+
     const nameInp = document.createElement('input');
     nameInp.className = 'order-name-input';
-    nameInp.placeholder = 'Název objednávky...';
+    nameInp.placeholder = 'Název objednávky / projekt...';
     nameInp.value = order.name;
     nameInp.addEventListener('input', () => { order.name = nameInp.value; });
     hdr.appendChild(nameInp);
@@ -3491,6 +3519,15 @@ function renderOrders() {
     xlsInp.addEventListener('change', e => { if (e.target.files[0]) importExcelToOrder(e.target.files[0], order); e.target.value=''; });
     xlsLabel.appendChild(xlsInp);
     hdr.appendChild(xlsLabel);
+
+    // ⬇ Stáhnout vzorový Excel se správnými sloupci
+    const tplBtn = document.createElement('button');
+    tplBtn.type = 'button';
+    tplBtn.textContent = '⬇ Vzor';
+    tplBtn.title = 'Stáhnout vzor (.xlsx) s ukázkovými řádky — vyplň ho a importuj přes „📥 Excel"';
+    tplBtn.style.cssText = 'font-family:IBM Plex Mono,monospace;font-size:9px;padding:3px 8px;border-radius:3px;cursor:pointer;border:1px solid var(--blue,#4d9fff);color:var(--blue,#4d9fff);background:rgba(77,159,255,0.08);white-space:nowrap;';
+    tplBtn.addEventListener('click', () => { if (typeof downloadExcelTemplate === 'function') downloadExcelTemplate(); });
+    hdr.appendChild(tplBtn);
 
     if (orders.length > 1) {
       const delBtn = document.createElement('button');
@@ -3697,6 +3734,20 @@ function renderOrders() {
           unit.style.cssText = 'color:var(--muted);font-size:10px;';
           unit.textContent = 'ks';
 
+          // Výrobní čísla / sériová čísla pro tento typ boxu (volitelné)
+          const snInp = document.createElement('input');
+          snInp.type = 'text';
+          snInp.placeholder = 'výr. č.';
+          snInp.title = 'Výrobní čísla / SN — volitelně (např. SN001-SN025 nebo 12345, 12346, 12347)';
+          snInp.value = (addr.serials && addr.serials[bt.id]) || '';
+          snInp.style.cssText = 'width:100px;background:var(--bg);border:1px solid var(--border);' +
+            'border-radius:4px;color:var(--text);font-family:IBM Plex Mono,monospace;' +
+            'font-size:10px;padding:2px 5px;margin-left:4px;';
+          snInp.addEventListener('input', () => {
+            if (!addr.serials) addr.serials = {};
+            addr.serials[bt.id] = snInp.value;
+          });
+
           const del = document.createElement('button');
           del.innerHTML = '×';
           del.title = 'Odebrat';
@@ -3714,6 +3765,7 @@ function renderOrders() {
           chip.appendChild(nameLbl);
           chip.appendChild(inp);
           chip.appendChild(unit);
+          chip.appendChild(snInp);
           chip.appendChild(del);
           chipsWrap.appendChild(chip);
         });
@@ -9492,12 +9544,25 @@ function _buildOrderMapFromOrders(existing) {
 function downloadExcelTemplate() {
   const data = [
     ['OBJEDNATEL', 'ZASTAVKA_ADRESA', 'X_DELKA_MM', 'Y_SIRKA_MM', 'Z_VYSKA_MM', 'HMOTNOST_KG', 'POCET', 'HI', 'VIKO', 'NAZEV'],
-    ['Bieri Alteisen', 'Rothenburg LU',           1600, 1200, 1100, 200, 27,  980, 0, 'CPR 19.00'],
-    ['Bieri Alteisen', 'Rothenburg LU',           1200,  800,  920, 105,  9,  800, 0, 'CPR 08.00'],
-    ['Schneider',      'Aarauerstrasse 112, Brugg', 1600, 1200, 1260, 220, 10, 1140, 0, 'CPR 22.00'],
+    ['Bieri Alteisen GmbH', 'Industriestrasse 12, 6023 Rothenburg, Switzerland',     1600, 1200, 1100, 200, 27,  980, 0, 'CPR 19.00'],
+    ['Bieri Alteisen GmbH', 'Industriestrasse 12, 6023 Rothenburg, Switzerland',     1200,  800,  920, 105,  9,  800, 0, 'CPR 08.00'],
+    ['Schneider Umweltservice AG', 'Aarauerstrasse 112, 5200 Brugg, Switzerland',    1600, 1200, 1260, 220, 10, 1140, 0, 'CPR 22.00'],
+    ['Kurt Landolt Alteisen AG', 'Mollisstrasse 17, 8854 Näfels, Switzerland',       1600, 1200, 1100, 200, 12,  980, 0, 'CPR 19.00'],
+    ['SBB Infrastruktur', 'Bahnhofstrasse 1, 8732 Trimmbach, Switzerland',           1200,  800,  920, 105,  8,  800, 0, 'CPR 08.00'],
   ];
   try {
     const ws = XLSX.utils.aoa_to_sheet(data);
+    // nastavit šířky sloupců, aby byl vzor čitelný
+    ws['!cols'] = [
+      { wch: 28 },  // OBJEDNATEL
+      { wch: 56 },  // ZASTAVKA_ADRESA (úplná adresa)
+      { wch: 12 }, { wch: 12 }, { wch: 12 },   // rozměry
+      { wch: 14 },  // HMOTNOST_KG
+      { wch: 8 },   // POCET
+      { wch: 8 },   // HI
+      { wch: 8 },   // VIKO
+      { wch: 14 },  // NAZEV
+    ];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Objednavky');
     XLSX.writeFile(wb, 'lozny-plan-vzor.xlsx');
@@ -9550,7 +9615,7 @@ document.getElementById('xlsxInput').addEventListener('change', (e) => {
 
 document.getElementById('addOrderBtn').addEventListener('click', () => {
   const idx = orders.length;
-  orders.push({ id: nextId++, orderNo: '', name: `Objednávka ${idx + 1}`, color: ORDER_COLORS[idx % ORDER_COLORS.length], addresses: [{ id: nextId++, address: '', boxes: {} }] });
+  orders.push({ id: nextId++, orderNo: '', customer: '', name: `Objednávka ${idx + 1}`, color: ORDER_COLORS[idx % ORDER_COLORS.length], addresses: [{ id: nextId++, address: '', boxes: {}, serials: {} }] });
   stops = [];
   renderOrders();
 });
@@ -12954,10 +13019,20 @@ function exportStressCsv() {
       const si = u.stopIdx || 0;
       (byStop[si] = byStop[si] || {})[u.typeId] = (byStop[si][u.typeId] || 0) + 1;
     });
-    const stops_ = Object.keys(byStop).map(Number).sort((a, b) => stopOrderIndex(a) - stopOrderIndex(b)).map(si => ({
-      si, name: stopName(si),
-      lines: Object.keys(byStop[si]).map(tid => ({ tid: +tid, count: byStop[si][tid], t: boxTypeMap.get(+tid) })).filter(l => l.t)
-    }));
+    const stops_ = Object.keys(byStop).map(Number).sort((a, b) => stopOrderIndex(a) - stopOrderIndex(b)).map(si => {
+      const st = (typeof stops !== 'undefined' && stops[si]) || {};
+      return {
+        si, name: stopName(si),
+        customer: st.customer || '',
+        orderNo:  st.orderNo  || '',
+        lines: Object.keys(byStop[si]).map(tid => ({
+          tid: +tid,
+          count: byStop[si][tid],
+          t: boxTypeMap.get(+tid),
+          serial: (st.serials && st.serials[+tid]) || ''
+        })).filter(l => l.t)
+      };
+    });
     const label = (vehicles[0] ? vehicles[0].label : 'Souprava') + (avs.length > 1 ? ' (souprava)' : (avs[0] && avs[0].veh._part === 'auto' ? ' (jen auto)' : ''));
     return { idxs, avs, vehicles, units, totalKg, stops: stops_, label };
   }
@@ -13210,13 +13285,15 @@ function exportStressCsv() {
           const routeTxt = 'Bruntál → ' + (d.stops.map((s, i) => (i + 1) + '. ' + esc(s.name)).join(' → ') || '—') + ' → ' + esc(shared.crossName);
           const stopsHTML = d.stops.map((s, i) => {
             const rows = s.lines.map(l =>
-              `<tr><td style="padding:3px 6px;border:1px solid #ddd;">${l.count}×</td><td style="padding:3px 6px;border:1px solid #ddd;">${esc(l.t.name)}</td><td style="padding:3px 6px;border:1px solid #ddd;">${l.t.l}×${l.t.w}×${l.t.h} mm</td><td style="padding:3px 6px;border:1px solid #ddd;text-align:right;">${l.count * l.t.kg} kg</td></tr>`
+              `<tr><td style="padding:3px 6px;border:1px solid #ddd;">${l.count}×</td><td style="padding:3px 6px;border:1px solid #ddd;">${esc(l.t.name)}</td><td style="padding:3px 6px;border:1px solid #ddd;">${l.t.l}×${l.t.w}×${l.t.h} mm</td><td style="padding:3px 6px;border:1px solid #ddd;font-family:'Courier New',monospace;font-size:10px;color:#555;">${esc(l.serial || '—')}</td><td style="padding:3px 6px;border:1px solid #ddd;text-align:right;">${l.count * l.t.kg} kg</td></tr>`
             ).join('');
             const hours = shared.hoursBySi[s.si];
+            const custLine = s.customer ? `<div style="font-size:11px;color:#0d6e4e;font-weight:600;margin-top:2px;">🏢 ${esc(s.customer)}${s.orderNo ? ` <span style="color:#888;font-weight:400;">· obj. č. ${esc(s.orderNo)}</span>` : ''}</div>` : '';
             return `<div style="margin:8px 0;">
               <div style="font-size:12px;font-weight:600;color:#0d6e4e;margin-bottom:4px;">${i + 1}. vykládka — ${esc(s.name)}${hours ? ` <span style="color:#888;font-weight:400;">· prac. doba ${esc(hours)}</span>` : ''}</div>
-              <table style="width:100%;border-collapse:collapse;font-size:11px;font-family:Arial,sans-serif;">
-                <thead><tr style="background:#f5f5f5;"><th style="padding:4px 6px;border:1px solid #ddd;text-align:left;">ks</th><th style="padding:4px 6px;border:1px solid #ddd;text-align:left;">typ bedny</th><th style="padding:4px 6px;border:1px solid #ddd;text-align:left;">rozměr</th><th style="padding:4px 6px;border:1px solid #ddd;text-align:right;">kg Σ</th></tr></thead>
+              ${custLine}
+              <table style="width:100%;border-collapse:collapse;font-size:11px;font-family:Arial,sans-serif;margin-top:4px;">
+                <thead><tr style="background:#f5f5f5;"><th style="padding:4px 6px;border:1px solid #ddd;text-align:left;">ks</th><th style="padding:4px 6px;border:1px solid #ddd;text-align:left;">typ bedny</th><th style="padding:4px 6px;border:1px solid #ddd;text-align:left;">rozměr</th><th style="padding:4px 6px;border:1px solid #ddd;text-align:left;">výr. č.</th><th style="padding:4px 6px;border:1px solid #ddd;text-align:right;">kg Σ</th></tr></thead>
                 <tbody>${rows}</tbody></table></div>`;
           }).join('');
 
@@ -13417,15 +13494,17 @@ function exportStressCsv() {
       const routeTxt = 'Bruntál → ' + (d.stops.map((s, i) => (i + 1) + '. ' + esc(s.name)).join(' → ') || '—') + ' → ' + esc(sh.crossName);
       const stopsHTML = d.stops.map((s, i) => {
         const rows = s.lines.map(l =>
-          `<tr><td>${l.count}×</td><td>${volClass(l.t)}</td><td>${fmtDims(l.t)}</td><td>${esc(l.t.name)}</td><td class="r">${l.t.kg}</td><td class="r">${l.count * l.t.kg}</td></tr>`
+          `<tr><td>${l.count}×</td><td>${volClass(l.t)}</td><td>${fmtDims(l.t)}</td><td>${esc(l.t.name)}</td><td style="font-family:'Courier New',monospace;font-size:9px;">${esc(l.serial || '—')}</td><td class="r">${l.t.kg}</td><td class="r">${l.count * l.t.kg}</td></tr>`
         ).join('');
         const hours = sh.hoursBySi[s.si], zak = sh.zakBySi[s.si], vyd = sh.vydBySi[s.si];
+        const custLine = s.customer ? `<div style="font-size:10px;color:#0d6e4e;font-weight:600;margin-top:2px;">🏢 ${esc(s.customer)}${s.orderNo ? ` <span style="color:#888;font-weight:400;">· obj. č. ${esc(s.orderNo)}</span>` : ''}</div>` : '';
         return `<div class="stop">
           <div class="stoph"><b>${i + 1}. vykládka</b> — ${esc(s.name)}
             ${hours ? `<span class="mut"> · prac. doba ${esc(hours)}</span>` : ''}
             ${zak ? `<span class="mut"> · zakázka ${esc(zak)}</span>` : ''}
-            ${vyd ? `<span class="mut"> · výdejka ${esc(vyd)}</span>` : ''}</div>
-          <table class="lt"><thead><tr><th>ks</th><th>m³</th><th>rozměr (mm)</th><th>typ bedny</th><th class="r">kg/ks</th><th class="r">kg Σ</th></tr></thead>
+            ${vyd ? `<span class="mut"> · výdejka ${esc(vyd)}</span>` : ''}
+            ${custLine}</div>
+          <table class="lt"><thead><tr><th>ks</th><th>m³</th><th>rozměr (mm)</th><th>typ bedny</th><th>výr. č.</th><th class="r">kg/ks</th><th class="r">kg Σ</th></tr></thead>
           <tbody>${rows}</tbody></table></div>`;
       }).join('');
 
