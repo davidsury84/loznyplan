@@ -14807,8 +14807,9 @@ async function solveVehicleSelectionIP() {
 
   // 5) Solve
   const t0 = performance.now();
-  glpk.glp_simplex(lp, { msg_lev: glpk.GLP_MSG_OFF });
-  glpk.glp_intopt(lp, { msg_lev: glpk.GLP_MSG_OFF, tm_lim: 5000 });
+  // glpk vyžaduje plné SMCP/IOCP objekty (s defaulty), ne plain options
+  glpk.glp_simplex(lp, new glpk.SMCP({ msg_lev: glpk.GLP_MSG_OFF, presolve: glpk.GLP_ON }));
+  glpk.glp_intopt(lp, new glpk.IOCP({ msg_lev: glpk.GLP_MSG_OFF, tm_lim: 5000, presolve: glpk.GLP_ON }));
   const ms = performance.now() - t0;
 
   const status = glpk.glp_mip_status(lp);
