@@ -818,7 +818,9 @@ canvas { display: block; }
         <label for="jsonImportInput" class="dm-item" style="display:block;cursor:pointer;" title="Nahrát .lozny.json přímo ze souboru">⬆ Nahrát .json soubor</label>
         <input type="file" id="jsonImportInput" accept=".json,.lozny.json" style="display:none;">
         <div style="height:1px;background:var(--border);margin:4px 0;"></div>
-        <button id="saveToHistoryBtn" onclick="saveCurrentToHistoryWithName();document.getElementById('planMenuList').style.display='none';" class="dm-item" style="color:var(--orange,#f97316);" title="Uložit aktuální spočítaný plán do lokální historie">⭐ Uložit do historie</button>
+        <button id="saveToHistoryBtn" onclick="if(typeof saveCurrentToHistoryWithName==='function')saveCurrentToHistoryWithName();else alert('Funkce není dostupná - obnov stránku.');document.getElementById('planMenuList').style.display='none';" class="dm-item" style="color:var(--orange,#f97316);" title="Uložit aktuální spočítaný plán do lokální historie">⭐ Uložit do historie</button>
+        <div style="height:1px;background:var(--border);margin:4px 0;"></div>
+        <button onclick="if(typeof loadTestOrderCH==='function'){loadTestOrderCH();document.getElementById('planMenuList').style.display='none';}else alert('Funkce není dostupná.');" class="dm-item" style="color:var(--green,#3dd68c);" title="Nahraje testovací objednávku CH (3 vykládky) — užitečné pro vyzkoušení appky">📦 Načíst testovací objednávku (CH)</button>
       </div>
     </div>
 
@@ -828,7 +830,7 @@ canvas { display: block; }
     <input type="file" id="xlsxInput" accept=".xlsx,.xls,.csv" style="display:none;">
 
     <!-- 4. Historie zakázek -->
-    <button id="historyBtn" onclick="openOrderHistoryModal()" title="Otevřít historii uložených zakázek (lokálně v prohlížeči)" style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;padding:7px 14px;border-radius:4px;cursor:pointer;border:1px solid var(--accent);color:var(--accent);background:rgba(240,192,64,0.08);text-transform:uppercase;transition:all 0.15s;white-space:nowrap;">📚 Historie</button>
+    <button id="historyBtn" onclick="if(typeof openOrderHistoryModal==='function'){openOrderHistoryModal();}else{alert('Historie není dostupná. Otevři Vývojářské nástroje (Cmd+Opt+I) → Console — pošli mi červené chyby.');}" title="Otevřít historii uložených zakázek (lokálně v prohlížeči)" style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;padding:7px 14px;border-radius:4px;cursor:pointer;border:1px solid var(--accent);color:var(--accent);background:rgba(240,192,64,0.08);text-transform:uppercase;transition:all 0.15s;white-space:nowrap;">📚 Historie</button>
 
     <!-- 5. Profile widget — vpravo -->
     <button id="profileWidget" onclick="(function(){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));var tb=document.querySelector('[data-page=\'pageProfile\']');if(tb)tb.classList.add('active');var pg=document.getElementById('pageProfile');if(pg)pg.classList.add('active');if(typeof renderProfilePage==='function')renderProfilePage();})();" title="Můj profil" style="margin-left:4px;display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:18px;border:1px solid var(--purple,#b07fff);background:rgba(176,127,255,0.10);cursor:pointer;white-space:nowrap;transition:all 0.15s;height:32px;"><span style="font-size:11px;color:var(--muted);">👤 Bez profilu</span></button>
