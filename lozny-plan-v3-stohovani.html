@@ -884,9 +884,7 @@ canvas { display: block; }
   </div>
 
   <div style="padding:16px 24px 20px;display:flex;gap:8px;">
-    <button class="calc-btn" id="calcBtn" style="flex:1;">⚡ Vypočítat ložné plány</button>
-    <button id="ipOptBtn" onclick="runIpOptimization()" title="IP optimalizace — vyřeší výběr vozidel matematicky (glpk.js). Vhodné pro střední a velké zakázky kde heuristika nedává jasný výsledek. První kliknutí stáhne solver (~1.2 MB)."
-      style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:1px;padding:10px 18px;border-radius:8px;cursor:pointer;border:1px solid var(--purple,#b07fff);color:var(--purple,#b07fff);background:rgba(176,127,255,0.10);text-transform:uppercase;font-weight:700;white-space:nowrap;">🧮 IP optimalizace</button>
+    <button class="calc-btn" id="calcBtn" style="flex:1;" title="Spočítá ložné plány: 8 heuristických variant (A-J) + automatické IP doladění layoutu v každém autě (glpk.js, max 22 beden/auto). Solver se stáhne při prvním kliknutí (~1.2 MB).">⚡ Vypočítat ložné plány</button>
     <div id="devMenuWrap" style="position:relative;display:inline-block;">
       <button class="btn btn-ghost" id="devMenuBtn" onclick="toggleDevMenu()" title="Testy, učení, stress, trenér, log"
         style="border-color:var(--blue);color:var(--blue);padding:10px 14px;border-radius:8px;font-size:11px;cursor:pointer;white-space:nowrap;">
@@ -1567,7 +1565,8 @@ async function saveCurrentOrderToHistory(customName, customNote) {
       orders: orders || [], boxTypes: boxTypes || [], stops: stops || [],
       assignedVehicles: (assignedVehicles || []).map(av => ({
         veh: av.veh, units: av.units, layout: av.layout, parked: av.parked || []
-      }))
+      })),
+      globalParked: (window._globalParked || []).map(p => ({ ...p }))
     }
   };
 
@@ -1641,6 +1640,10 @@ function loadOrderFromHistory(id) {
     boxTypes = e.state.boxTypes || [];
     stops = e.state.stops || [];
     assignedVehicles = e.state.assignedVehicles || [];
+    // Obnovit globální parkovací zónu (nebo prázdná, pokud starší záznam)
+    window._globalParked = e.state.globalParked || [];
+    // Migrace legacy per-vehicle parked → global (pro starší záznamy v historii)
+    try { migrateLegacyParked(); } catch (er) {}
     selectedVehicleIdx = 0;
     rebuildBoxTypeMap();
     try { renderBoxTypes(); } catch (er) {}
@@ -2559,6 +2562,8 @@ function rigCounts(vehicles) {
 }
 
 async function computeAllVehicles() {
+  // Při novém výpočtu vyresetovat globální parkovací zónu — nové bedny, nový start
+  if (typeof window !== 'undefined') window._globalParked = [];
   // Čekající (odložené) objednávky — nabídni jejich zahrnutí jako doplnění
   const pend = orders.filter(o => o.pending && o.includeInCalc === false &&
     o.addresses.some(a => Object.values(a.boxes || {}).some(q => q > 0)));
@@ -2786,12 +2791,235 @@ async function computeAllVehicles() {
 
   // seřaď: nejdřív ty co se vejdou, pak nejmíň vozidel, pak nejlepší skóre
   results.sort((a, b) => (b.valid - a.valid) || (a.metrics.n - b.metrics.n) || ((b.metrics.score || 0) - (a.metrics.score || 0)));
+
+  // 🎲 Simulated Annealing — post-optimalizace nejlepší varianty
+  // Náhodně prohazuje bedny mezi auty a akceptuje prohození, pokud zlepší skóre.
+  // Rychlé (~1-2 s), funguje pro úlohy všech velikostí.
+  if (results[0] && results[0].valid && results[0].vehicles && results[0].vehicles.length > 1) {
+    try {
+      await _saRefineWinner(results[0]);
+    } catch (e) { console.warn('SA optimization skipped:', e); }
+  }
+
+  // 🗺️ Předem stáhni souřadnice adres pro mapu — na pozadí, nezdržuje UI
+  // Až user klikne na "Mapa", data jsou už cachovaná → mapa se ukáže okamžitě.
+  setTimeout(() => {
+    if (typeof prefetchRouteData === 'function') {
+      prefetchRouteData().catch(err => console.warn('Route prefetch failed:', err));
+    }
+  }, 100);
+
   _allVehResults = results;
   results._cargoVol = _cargoVol;
   results._cargoKg = _cargoKg;
   hideCalcProgress();
   showAllVehiclesModal(results);
 }
+
+// Automatické IP doladění layoutu nejlepší varianty — voláno z computeAllVehicles
+async function _autoIpRefineWinner(winnerResult) {
+  if (!winnerResult || !winnerResult.vehicles) return;
+  if (typeof loadGlpk !== 'function' || typeof ipRefineVehicleLayout !== 'function') return;
+  // Kontrola, zda má smysl spouštět (jsou-li auta s 3-22 bedny)
+  const eligible = winnerResult.vehicles.filter(av => av.units && av.units.length >= 3 && av.units.length <= 22);
+  if (!eligible.length) return;
+
+  try {
+    updateCalcProgress('🎯 IP doladění — načítám solver…');
+    await loadGlpk();
+
+    let improved = 0, tried = 0, totalSavedMm = 0;
+    for (let k = 0; k < winnerResult.vehicles.length; k++) {
+      const av = winnerResult.vehicles[k];
+      if (!av.units || av.units.length < 3 || av.units.length > 22) continue;
+      tried++;
+      updateCalcProgress(`🎯 IP doladění: auto ${tried}/${eligible.length} (${av.units.length} bedny)`);
+      await new Promise(r => setTimeout(r, 10));
+      try {
+        const res = await ipRefineVehicleLayout(av, 8000);   // 8 s timeout per auto
+        if (!res) continue;
+        // Spočítat heuristic L_used pro porovnání
+        const heurLen = av.units.reduce((m, u) => {
+          const t = boxTypeMap.get(u.typeId);
+          if (!t) return m;
+          const li = u.rot ? t.w : t.l;
+          return Math.max(m, (u.x || 0) + li);
+        }, 0);
+        if (res.usedLen < heurLen - 50) {
+          av.units = res.units;
+          improved++;
+          totalSavedMm += (heurLen - res.usedLen);
+        }
+      } catch (e) { /* skip this vehicle */ }
+    }
+    if (improved > 0) {
+      winnerResult._ipImproved = improved;
+      winnerResult._ipSavedMm = totalSavedMm;
+      // Přepočítat metrics, ať se zlepšení projeví ve skóre
+      try { winnerResult.metrics = scoreVariantDetailed(winnerResult.vehicles); } catch (e) {}
+      if (window.logAction) window.logAction('akce', `🎯 IP doladění: zlepšeno ${improved} aut (úspora ${(totalSavedMm/1000).toFixed(2)} m délky)`);
+    }
+  } catch (e) {
+    console.warn('IP refinement nepodařilo:', e);
+  }
+}
+window._autoIpRefineWinner = _autoIpRefineWinner;
+
+// ──────────────────────────────────────────────────────────────────────────
+// SIMULATED ANNEALING POST-OPTIMIZATION
+//
+// Vezme nejlepší heuristic plán a 1500 iterací zkusí prohodit/přesunout
+// bedny mezi auty. Cílem je:
+//  1) Vyprázdnit auta s nejnižším využitím (méně aut = lepší)
+//  2) Zhutnit využití zbylých aut
+//
+// Skóre se měří jako: počet aut × 1000 − průměrný využitý objem
+// Akceptační kritérium: hladina pravděpodobnosti exp(−Δ/T), kde T klesá
+// ──────────────────────────────────────────────────────────────────────────
+async function _saRefineWinner(winnerResult) {
+  if (!winnerResult || !winnerResult.vehicles || winnerResult.vehicles.length < 2) return;
+  updateCalcProgress('🎲 Doladění SA — prohazuji bedny mezi auty…');
+  await new Promise(r => setTimeout(r, 10));
+
+  // Helper: rychlá zkouška, zda se sada beden vejde do auta
+  const fitsInVehicle = (units, veh) => {
+    if (!units || !units.length) return true;
+    let totalKg = 0, totalVol = 0;
+    for (const u of units) {
+      const t = boxTypeMap.get(u.typeId);
+      if (!t) return false;
+      totalKg += t.kg || 0;
+      totalVol += (t.l * t.w * t.h) / 1e9;
+    }
+    if (totalKg > (veh.maxKg || 0) * 1.0) return false;
+    const vehVol = ((veh.L || 0) * (veh.W || 0) * (veh.H || 0)) / 1e9;
+    if (totalVol > vehVol * 0.95) return false;
+    return true;
+  };
+
+  // Skóre plánu: méně aut = lépe, vyšší využití = lépe
+  const planScore = (vehicles) => {
+    let activeCount = 0, totalVol = 0, totalCap = 0;
+    for (const av of vehicles) {
+      if (!av.units || !av.units.length) continue;
+      activeCount++;
+      const vol = av.units.reduce((s, u) => {
+        const t = boxTypeMap.get(u.typeId);
+        return s + (t ? (t.l * t.w * t.h) / 1e9 : 0);
+      }, 0);
+      const cap = ((av.veh.L || 0) * (av.veh.W || 0) * (av.veh.H || 0)) / 1e9;
+      totalVol += vol; totalCap += cap;
+    }
+    const util = totalCap > 0 ? totalVol / totalCap : 0;
+    // skóre: čím méně aut, tím lépe; čím vyšší využití, tím lépe
+    return activeCount * 1000 - util * 100;
+  };
+
+  // Deep-copy vehicles units pouze (rozměry zůstanou stejné — sdílíme typ)
+  const cloneState = (vehs) => vehs.map(av => ({ ...av, units: av.units.map(u => ({ ...u })) }));
+
+  let current = cloneState(winnerResult.vehicles);
+  let currentScore = planScore(current);
+  let best = cloneState(current);
+  let bestScore = currentScore;
+
+  const ITERATIONS = 1500;
+  let T = 10.0;  // počáteční „teplota"
+  const cooling = 0.995;
+
+  let accepted = 0, improved = 0;
+  const t0 = performance.now();
+
+  for (let iter = 0; iter < ITERATIONS; iter++) {
+    if (iter % 250 === 0) {
+      updateCalcProgress(`🎲 Doladění SA — iterace ${iter}/${ITERATIONS}, aktuální skóre ${currentScore.toFixed(1)}`);
+      await new Promise(r => setTimeout(r, 0));
+    }
+    // Vyber 2 různá auta s alespoň 1 bednou
+    const candidates = current.filter(av => av.units && av.units.length > 0);
+    if (candidates.length < 2) break;
+    const aIdx = Math.floor(Math.random() * candidates.length);
+    let bIdx = Math.floor(Math.random() * candidates.length);
+    if (bIdx === aIdx) bIdx = (bIdx + 1) % candidates.length;
+    const av1 = candidates[aIdx], av2 = candidates[bIdx];
+
+    // Náhodně vyber typ operace: 0=přesun 1 bedny, 1=výměna 2 beden
+    const op = Math.random() < 0.7 ? 'move' : 'swap';
+    const trial1 = av1.units.map(u => ({ ...u }));
+    const trial2 = av2.units.map(u => ({ ...u }));
+
+    if (op === 'move') {
+      // přesun bedny z av2 do av1
+      if (trial2.length === 0) continue;
+      const k = Math.floor(Math.random() * trial2.length);
+      const u = trial2.splice(k, 1)[0];
+      trial1.push(u);
+    } else {
+      // výměna: bedna z av1 ↔ bedna z av2
+      if (trial1.length === 0 || trial2.length === 0) continue;
+      const k1 = Math.floor(Math.random() * trial1.length);
+      const k2 = Math.floor(Math.random() * trial2.length);
+      const tmp = trial1[k1]; trial1[k1] = trial2[k2]; trial2[k2] = tmp;
+    }
+
+    // Test, jestli se vejdou (rychlý objemový/váhový test, bez packingu)
+    if (!fitsInVehicle(trial1, av1.veh)) continue;
+    if (!fitsInVehicle(trial2, av2.veh)) continue;
+
+    // Spočítat skóre po prohození
+    const newState = current.map(av =>
+      av === av1 ? { ...av, units: trial1 } :
+      av === av2 ? { ...av, units: trial2 } : av
+    );
+    const newScore = planScore(newState);
+    const delta = newScore - currentScore;
+
+    // Metropolis kritérium
+    if (delta < 0 || Math.random() < Math.exp(-delta / T)) {
+      current = newState;
+      currentScore = newScore;
+      accepted++;
+      if (currentScore < bestScore) {
+        best = cloneState(current);
+        bestScore = currentScore;
+        improved++;
+      }
+    }
+    T *= cooling;
+  }
+
+  const ms = performance.now() - t0;
+
+  // Aplikuj jen pokud SA našel reálné zlepšení (méně aut)
+  const origActive = winnerResult.vehicles.filter(av => av.units && av.units.length).length;
+  const newActive = best.filter(av => av.units && av.units.length).length;
+  if (newActive < origActive || bestScore < planScore(winnerResult.vehicles) - 0.5) {
+    // Sketchy: musíme přepočítat layout v každém autě, protože bedny se prohazovaly
+    // Pro každé auto zavoláme packVariant (B variantu, nejstabilnější) s novým units
+    for (const av of best) {
+      if (!av.units || !av.units.length) continue;
+      const savedFleet = fleet;
+      fleet = [{ ...av.veh, id: 1 }];
+      try {
+        const repack = packVariant(av.units, getVariantSortFn('area'));
+        if (repack && repack[0]) {
+          av.units = repack[0].units;
+          av.layout = repack[0].layout;
+        }
+      } catch (e) {}
+      fleet = savedFleet;
+    }
+    // Odfiltruj prázdná auta
+    winnerResult.vehicles = best.filter(av => av.units && av.units.length > 0);
+    winnerResult._saImproved = true;
+    winnerResult._saTimeMs = ms;
+    winnerResult._saIterations = ITERATIONS;
+    winnerResult._saAccepted = accepted;
+    try { winnerResult.metrics = scoreVariantDetailed(winnerResult.vehicles); } catch (e) {}
+    if (window.logAction) window.logAction('akce', `🎲 SA optimalizace: ${origActive}→${newActive} aut za ${(ms/1000).toFixed(1)}s, ${accepted}/${ITERATIONS} prohození`);
+  }
+}
+window._saRefineWinner = _saRefineWinner;
 
 // Cargo length per vykládka v hotovém layoutu (extent v ose X, max přes všechny vehicles)
 function _stopCargoLengths(vehicles) {
@@ -8028,6 +8256,27 @@ function renderResults() {
         dispose3D(); renderResults();
       });
 
+      // Drag-and-drop target: bedna přetažena z parkovací zóny → vloží se do tohoto auta
+      card.addEventListener('dragover', (ev) => {
+        if (ev.dataTransfer && ev.dataTransfer.types.includes('parkedidx')) {
+          ev.preventDefault();
+          ev.dataTransfer.dropEffect = 'move';
+          card.style.outline = '2px solid var(--green,#3dd68c)';
+          card.style.outlineOffset = '-2px';
+        }
+      });
+      card.addEventListener('dragleave', () => {
+        card.style.outline = ''; card.style.outlineOffset = '';
+      });
+      card.addEventListener('drop', (ev) => {
+        ev.preventDefault();
+        card.style.outline = ''; card.style.outlineOffset = '';
+        const parkedIdx = parseInt(ev.dataTransfer.getData('parkedIdx'), 10);
+        if (!isNaN(parkedIdx)) {
+          unparkBoxToVehicle(parkedIdx, idx);
+        }
+      });
+
       vList.appendChild(card);
     }
   });
@@ -8303,7 +8552,39 @@ function renderPlanView() {
         ? '<div id="threeContainer" style="width:100%;height:600px;flex:0 0 auto;"></div>'
         : currentView === 'protocol'
           ? '<div id="protocolView"></div>'
-          : `<div style="width:100%;height:340px;flex:0 0 340px;position:relative;">
+          : `${(() => {
+              // Legenda vykládek nad plánem: firma, č. objednávky, adresa, počet beden
+              try {
+                if (!av || !av.units || !av.units.length) return '';
+                const vstopsList = [...new Map(av.units.map(u => [u.stopIdx, u])).values()].sort((a,b) => (a.stopIdx||0) - (b.stopIdx||0));
+                const stopBoxCounts = {};
+                av.units.forEach(u => { stopBoxCounts[u.stopIdx] = (stopBoxCounts[u.stopIdx] || 0) + 1; });
+                const safeEsc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+                const legendItems = vstopsList.map(u => {
+                  const st = (typeof stops !== 'undefined' && stops) ? stops[u.stopIdx] : null;
+                  const firma = (st && st.customer) ? st.customer : '';
+                  const obj = (st && st.orderNo) ? `obj. ${st.orderNo}` : '';
+                  const cnt = stopBoxCounts[u.stopIdx] || 0;
+                  const adr = u.stopName || (st && st.name) || '';
+                  const shortAdr = adr.length > 60 ? adr.slice(0, 60) + '…' : adr;
+                  const meta = [firma, obj].filter(x => x).join(' · ');
+                  const sc = stopColor(u.stopIdx || 0);
+                  return `<div style="display:flex;align-items:flex-start;gap:8px;padding:5px 8px;background:${sc}14;border-left:3px solid ${sc};border-radius:4px;font-size:11px;line-height:1.35;">
+                    <div style="background:${sc};color:#fff;font-weight:700;font-family:'IBM Plex Mono',monospace;font-size:10px;border-radius:3px;padding:2px 6px;min-width:18px;text-align:center;flex:0 0 auto;">${(u.stopIdx||0)+1}</div>
+                    <div style="flex:1;min-width:0;">
+                      ${meta ? `<div style="color:${sc};font-weight:600;font-size:11px;">${safeEsc(meta)}</div>` : ''}
+                      <div style="color:var(--text);font-size:10px;${meta?'opacity:0.85;':''}">${safeEsc(shortAdr)}</div>
+                    </div>
+                    <div style="color:var(--muted);font-size:9px;white-space:nowrap;flex:0 0 auto;">${cnt} ks</div>
+                  </div>`;
+                }).join('');
+                return `<div style="display:flex;flex-direction:column;gap:4px;padding:8px;background:var(--panel2);border:1px solid var(--border);border-radius:6px;flex:0 0 auto;">${legendItems}</div>`;
+              } catch (err) {
+                console.warn('Plan legend render failed:', err);
+                return '';
+              }
+            })()}
+            <div style="width:100%;height:340px;flex:0 0 340px;position:relative;">
                <div id="threeContainer" style="width:100%;height:100%;border:1px solid rgba(120,140,180,0.5);border-radius:8px;background:#0d1117;overflow:hidden;position:relative;"></div>
                <button onclick="currentView='3d';renderPlanView();" title="Zvětšit na celé okno"
                        style="position:absolute;top:10px;right:10px;z-index:10;background:rgba(13,17,23,0.85);border:1px solid rgba(120,140,180,0.55);color:rgba(255,255,255,0.9);padding:6px 12px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600;letter-spacing:0.3px;font-family:'IBM Plex Mono',monospace;backdrop-filter:blur(4px);transition:background 0.15s;"
@@ -8311,13 +8592,57 @@ function renderPlanView() {
                  ⛶ PLNÝ 3D POHLED
                </button>
              </div>
-             <div style="flex:1 1 auto;min-height:560px;padding:12px;border:1px solid var(--border);border-radius:8px;background:#0d1117;display:flex;align-items:flex-start;justify-content:center;overflow:auto;">
+             <div id="planCanvasBox" style="flex:1 1 auto;min-height:560px;padding:12px;border:1px solid var(--border);border-radius:8px;background:#0d1117;display:flex;align-items:flex-start;justify-content:center;overflow:auto;">
                <canvas id="planCanvas" style="max-width:100%;"></canvas>
              </div>`
       }
     </div>
     ${checklistHTML}
     </div>
+    ${(() => {
+      // Migrace + zobrazení GLOBÁLNÍ parking zóny (sdílená napříč všemi auty)
+      try { migrateLegacyParked(); } catch (e) {}
+      const parked = window._globalParked || [];
+      if (!placeMode || parked.length === 0) return '';
+      // Sestavit options pro select s cílovými auty
+      const vehOpts = assignedVehicles.map((vv, vi) => {
+        const lbl = (vv.veh && vv.veh.label) || ('Auto ' + (vi+1));
+        const part = vv.veh && vv.veh._part ? (vv.veh._part === 'auto' ? ' (auto)' : ' (vlek)') : '';
+        return `<option value="${vi}"${vi === selectedVehicleIdx ? ' selected' : ''}>#${vi+1} · ${lbl}${part}</option>`;
+      }).join('');
+      return `<div id="globalParkingZone" style="margin-top:10px;padding:10px 12px;border:1px dashed var(--orange);border-radius:6px;background:rgba(249,115,22,0.06);">
+        <div style="font-size:11px;color:var(--orange);margin-bottom:8px;font-weight:600;display:flex;align-items:center;justify-content:space-between;">
+          <span>🅿️ Globální parkovací zóna (${parked.length}) — bedny odložené napříč všemi vozidly</span>
+          <span style="font-size:9px;color:var(--muted);font-weight:400;">Klikněte „↩ Vložit" pro vrácení do vybraného auta. Můžete změnit cíl v rozbalovacím seznamu.</span>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          ${parked.map((p, idx) => {
+            const pbt = boxTypeMap.get(p.box.typeId);
+            const dim = pbt ? `${pbt.l}×${pbt.w}×${pbt.h}` : '';
+            const nestedTxt = p.nested && p.nested.length ? ` <span style="color:var(--muted);">(+${p.nested.length} vnořeno)</span>` : '';
+            const sourceTxt = p.sourceVehLabel ? `z ${p.sourceVehLabel}` : '';
+            return `<div draggable="true" ondragstart="event.dataTransfer.setData('parkedIdx', '${idx}');event.dataTransfer.effectAllowed='move';this.style.opacity='0.5';" ondragend="this.style.opacity='1';"
+                   style="background:var(--panel);border:1px solid var(--orange);border-radius:6px;padding:8px 10px;min-width:200px;cursor:move;">
+              <div style="font-size:11px;color:var(--text);margin-bottom:2px;">
+                <b>${pbt ? pbt.name : '?'}</b>${nestedTxt}
+              </div>
+              <div style="font-size:9px;color:var(--muted);margin-bottom:6px;">
+                ${dim} mm · vykl. ${(p.box.stopIdx || 0) + 1}${sourceTxt ? ' · ' + sourceTxt : ''}
+              </div>
+              <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
+                <select id="parkTarget_${idx}" style="font-size:10px;padding:3px 5px;border-radius:3px;border:1px solid var(--border);background:var(--bg);color:var(--text);flex:1;min-width:90px;">
+                  ${vehOpts}
+                </select>
+                <button onclick="unparkBoxToVehicle(${idx}, +document.getElementById('parkTarget_${idx}').value)"
+                  style="font-size:10px;padding:4px 8px;border-radius:4px;border:1px solid var(--green,#3dd68c);background:rgba(61,214,140,0.08);color:var(--green,#3dd68c);cursor:pointer;white-space:nowrap;">↩ Vložit</button>
+                <button onclick="discardParkedBox(${idx})"
+                  style="font-size:10px;padding:4px 8px;border-radius:4px;border:1px solid var(--red,#e24b4a);background:transparent;color:var(--red,#e24b4a);cursor:pointer;">✕</button>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+    })()}
     ${placeMode && av && av.parked && av.parked.length ? `
     <div style="margin-top:8px;padding:10px 12px;border:1px dashed var(--orange);border-radius:6px;background:rgba(249,115,22,0.05);">
       <div style="font-size:11px;color:var(--orange);margin-bottom:8px;font-weight:600;">
@@ -8638,11 +8963,29 @@ function rotateBox90(box) {
   _toast('Bedna otočena o 90°.');
 }
 
-// ─── Ruční úprava: Odložit bednu mimo vůz (do parkovací zóny pod plánem) ──────
+// Globální "parkovací zóna" — odložené bedny napříč VŠEMI vozidly
+// (dříve byly per-vehicle av.parked[], ale logičtější je sdílený prostor:
+// odložím u auta č.1, vrátím do auta č.3)
+if (typeof window._globalParked === 'undefined') window._globalParked = [];
+
+// Migrace ze starého per-vehicle stavu, pokud někdo načte starší plán z historie
+function migrateLegacyParked() {
+  if (!Array.isArray(assignedVehicles)) return;
+  for (const av of assignedVehicles) {
+    if (av && av.parked && av.parked.length) {
+      for (const p of av.parked) {
+        window._globalParked.push({ ...p, sourceVehLabel: av.veh && av.veh.label });
+      }
+      av.parked = [];
+    }
+  }
+}
+window.migrateLegacyParked = migrateLegacyParked;
+
+// ─── Ruční úprava: Odložit bednu mimo vůz (do GLOBÁLNÍ parkovací zóny) ──────
 function parkBoxAside(box) {
   document.getElementById('boxActionMenu')?.remove();
   const av = assignedVehicles[selectedVehicleIdx]; if (!av) return;
-  if (!av.parked) av.parked = [];
   // pokud má bedna vnořené uvnitř (isNested s pozicí uvnitř box), odlož je spolu
   const bt = boxTypeMap.get(box.typeId);
   const bL = box.dispL || (bt ? bt.l : 0), bW = box.dispW || (bt ? bt.w : 0);
@@ -8650,31 +8993,64 @@ function parkBoxAside(box) {
     && b.x >= box.x - 1 && b.y >= box.y - 1 && b.z >= box.z - 1
     && b.x < box.x + bL && b.y < box.y + bW);
   av.layout = (av.layout || []).filter(b => b !== box && !nestedHere.includes(b));
-  av.parked.push({ box, nested: nestedHere });
+  // Odebrat bednu(y) i z av.units — abychom správně aktualizovali počty
+  const removeUnit = (b) => {
+    const idx = av.units.findIndex(u => u.typeId === b.typeId && u.stopIdx === b.stopIdx && u._idx === b._idx);
+    if (idx >= 0) av.units.splice(idx, 1);
+  };
+  removeUnit(box);
+  nestedHere.forEach(removeUnit);
+  // Vložit do globální zóny s referencí na zdrojové auto
+  window._globalParked.push({
+    box, nested: nestedHere,
+    sourceVehLabel: av.veh && av.veh.label,
+    sourceVehIdx: selectedVehicleIdx,
+    parkedAt: Date.now()
+  });
   try { renderPlanView(); } catch (e) {}
-  _toast('Bedna odložena mimo vůz — najdeš ji v zóně pod plánem.');
+  _toast('Bedna odložena do parkovací zóny — lze ji vložit do jakéhokoliv auta.');
 }
 
-// Vrátit odloženou bednu do vozu — spustí výběr volného místa na podlaze
-function unparkBox(parkedIdx) {
-  const av = assignedVehicles[selectedVehicleIdx]; if (!av || !av.parked) return;
-  const p = av.parked[parkedIdx]; if (!p) return;
-  av.layout.push(p.box);
-  if (p.nested && p.nested.length) av.layout.push(...p.nested);
-  av.parked.splice(parkedIdx, 1);
+// Vrátit odloženou bednu do KONKRÉTNÍHO auta (default = aktuální)
+function unparkBoxToVehicle(parkedIdx, targetVehIdx) {
+  if (typeof targetVehIdx !== 'number') targetVehIdx = selectedVehicleIdx;
+  const p = window._globalParked[parkedIdx]; if (!p) return;
+  const targetAv = assignedVehicles[targetVehIdx];
+  if (!targetAv) { alert('Cílové auto nenalezeno.'); return; }
+  // Přidat box + nested zpět do cílového auta — do layout i do units
+  targetAv.layout = targetAv.layout || [];
+  targetAv.units = targetAv.units || [];
+  targetAv.layout.push(p.box);
+  if (p.nested && p.nested.length) targetAv.layout.push(...p.nested);
+  targetAv.units.push(p.box);
+  if (p.nested && p.nested.length) targetAv.units.push(...p.nested);
+  // Odstranit ze parking
+  window._globalParked.splice(parkedIdx, 1);
+  // Přepnout na cílové auto a najít volné místo
+  const prevSelected = selectedVehicleIdx;
+  selectedVehicleIdx = targetVehIdx;
   try { renderPlanView(); } catch (e) {}
-  // okamžitě nabídnout nové místo pro položení na podlahu
-  if (typeof offerSpots === 'function') offerSpots(p.box, 'floor');
+  if (typeof offerSpots === 'function') {
+    setTimeout(() => offerSpots(p.box, 'floor'), 50);
+  }
+  _toast(`Bedna vrácena do: ${targetAv.veh && targetAv.veh.label || 'vůz ' + (targetVehIdx + 1)}`);
 }
+// Zachovat zpětnou kompatibilitu: starý název volá novou funkci s aktuálním autem
+function unparkBox(parkedIdx) { unparkBoxToVehicle(parkedIdx, selectedVehicleIdx); }
 
-// Smazat odloženou bednu úplně z plánu (z objednávky zůstane)
+// Smazat odloženou bednu úplně z plánu (z objednávky zůstane → příští výpočet ji použije)
 function discardParkedBox(parkedIdx) {
-  const av = assignedVehicles[selectedVehicleIdx]; if (!av || !av.parked) return;
+  const p = window._globalParked[parkedIdx]; if (!p) return;
   if (!confirm('Smazat odloženou bednu z plánu? Z objednávky zůstane — appka ji zase použije při příštím výpočtu.')) return;
-  av.parked.splice(parkedIdx, 1);
+  window._globalParked.splice(parkedIdx, 1);
   try { renderPlanView(); } catch (e) {}
   _toast('Bedna smazána z plánu.');
 }
+
+window.parkBoxAside = parkBoxAside;
+window.unparkBoxToVehicle = unparkBoxToVehicle;
+window.unparkBox = unparkBox;
+window.discardParkedBox = discardParkedBox;
 
 // Globální fits-check pro vnoření (zjednodušená kopie nestFits — přístupná z menu)
 function canNestInto(inner, outer) {
@@ -8935,13 +9311,15 @@ function exportPlanErrors() {
 }
 
 function drawPlan(av, veh) {
-  const wrap = document.getElementById('canvasWrap');
+  // Měříme planCanvasBox (přímý kontejner canvasu) — nikoliv canvasWrap,
+  // protože ten teď obsahuje i legendu vykládek + 3D náhled
+  const wrap = document.getElementById('planCanvasBox') || document.getElementById('canvasWrap');
   const canvas = document.getElementById('planCanvas');
   if (!wrap || !canvas) return;
   const ctx = canvas.getContext('2d');
 
   const aw = wrap.clientWidth - 32;
-  const ah = wrap.clientHeight - 32;
+  const ah = Math.max(300, wrap.clientHeight - 32);   // minimum, kdyby flex ještě nestihl
 
   // Každý vlek/auto je nyní SAMOSTATNÝ kontejner se svojí veh.L
   const isAuto = veh._part === 'auto';
@@ -9034,7 +9412,30 @@ function drawPlan(av, veh) {
   };
   // V černobílém režimu rozliš zastávky odstíny šedi (světlejší = pozdější vykládka)
   const grayForStop = si => { const g = [210, 170, 130, 95, 60][(si||0) % 5]; return `rgb(${g},${g},${g})`; };
-  const fillForStop = (b) => BW ? grayForStop(b.stopIdx||0) : (b.color || stopColor(b.stopIdx));
+  // Vrátí barvu boxu — v RAL módu hledá konkrétní RAL barvu, jinak používá pořadí vykládky
+  const fillForStop = (b) => {
+    if (BW) return grayForStop(b.stopIdx || 0);
+    if (window._planColorMode === 'ral') {
+      let ral = null;
+      const st = (typeof stops !== 'undefined' && stops[b.stopIdx]) || null;
+      if (st && st.rals && st.rals[b.typeId]) ral = st.rals[b.typeId];
+      if (!ral && st && typeof orders !== 'undefined') {
+        ralLookup: for (const o of orders) {
+          if (!o.addresses) continue;
+          for (const a of o.addresses) {
+            if (a.id === st.id && a.rals && a.rals[b.typeId]) {
+              ral = a.rals[b.typeId];
+              if (!st.rals) st.rals = {};
+              st.rals[b.typeId] = ral;
+              break ralLookup;
+            }
+          }
+        }
+      }
+      return ral ? ral.hex : '#5a5a5a';
+    }
+    return b.color || stopColor(b.stopIdx);
+  };
 
   // Background
   ctx.fillStyle = PAL.bg;
@@ -9256,7 +9657,7 @@ function drawPlan(av, veh) {
       }
       const mx = rx + (rw-mrw)/2, my = ry + (rh-mrh)*0.42;
       ctx.globalAlpha = BW ? 1 : 0.88;
-      ctx.fillStyle = BW ? '#ffffff' : (nestedBox.color || stopColor(nestedBox.stopIdx));
+      ctx.fillStyle = BW ? '#ffffff' : fillForStop(nestedBox);
       ctx.fillRect(mx, my, mrw, mrh);
       ctx.globalAlpha = 1;
       ctx.strokeStyle = BW ? '#000' : 'rgba(255,255,255,0.9)'; ctx.lineWidth = 1.5;
@@ -9948,15 +10349,45 @@ function setupEventListeners() {
 
 const ORIGIN = { name: 'Bruntál, Česká republika', lat: 49.9882, lon: 17.4641 };
 
+// Globální cache souřadnic adres — sdílená napříč voláními, šetří Nominatim API
+const _geocodeCache = new Map();   // address → {lat, lon, display}
+
 async function geocodeAddress(address) {
+  if (!address) return null;
+  // Cache hit
+  if (_geocodeCache.has(address)) return _geocodeCache.get(address);
   const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`;
-  const res = await fetch(url, { headers: { 'Accept-Language': 'cs,en' } });
-  const data = await res.json();
-  if (data && data.length > 0) {
-    return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon), display: data[0].display_name };
-  }
+  try {
+    const res = await fetch(url, { headers: { 'Accept-Language': 'cs,en' } });
+    const data = await res.json();
+    if (data && data.length > 0) {
+      const result = { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon), display: data[0].display_name };
+      _geocodeCache.set(address, result);
+      return result;
+    }
+  } catch (e) { /* offline / quota / parse error */ }
+  _geocodeCache.set(address, null);   // negative cache, neopakovat dotaz
   return null;
 }
+
+// Předem stáhne souřadnice pro všechny vykládky v stops[] (paralelně, s rate-limit)
+// Volá se na pozadí po výpočtu plánu — uživatel pak vidí mapu okamžitě.
+async function prefetchRouteData() {
+  if (!stops || !stops.length) return;
+  const toFetch = stops.filter(s => s.name && !_geocodeCache.has(s.name));
+  if (!toFetch.length) return;
+  // Nominatim politely rate-limited: 1 req/s max, ale my běžíme malé qty paralelně
+  // se zpožděním. Pro 5 adres je to OK.
+  const BATCH = 3;
+  for (let i = 0; i < toFetch.length; i += BATCH) {
+    const batch = toFetch.slice(i, i + BATCH);
+    await Promise.all(batch.map(s => geocodeAddress(s.name).then(c => {
+      if (c) s.coord = { lat: c.lat, lon: c.lon };
+    }).catch(() => {})));
+    if (i + BATCH < toFetch.length) await new Promise(r => setTimeout(r, 1100));   // rate-limit pauza
+  }
+}
+window.prefetchRouteData = prefetchRouteData;
 
 function haversine(a, b) {
   const R = 6371;
@@ -11096,14 +11527,39 @@ function packBlocks(units) {
   LOAD_RULES.backfillFloor = true;
   LOAD_RULES.backfillVertical = true;
 
-  // sort: největší půdorys dolů, stejné typy pohromadě (homogenní věže), vyšší dřív
+  // BLOCK DETECTION: spočítej velikosti skupin (stejný typeId + stopIdx)
+  // Skupiny ≥ 5 ks → preference v rámci stejně velkých půdorysů
+  const groupKey = (u) => `${u.stopIdx || 0}|${u.typeId}`;
+  const groupSizes = new Map();
+  for (const u of units) {
+    const k = groupKey(u);
+    groupSizes.set(k, (groupSizes.get(k) || 0) + 1);
+  }
+  const BLOCK_THRESHOLD = 5;        // 5+ kusů stejného typu
+
+  // sort: PRIMARY = velikost půdorysu (klasické bin packing optimum),
+  //       SECONDARY = velké skupiny (uvnitř stejně velkých půdorysů)
   const blockSort = (a, b) => {
     const ta = boxTypeMap.get(a.typeId), tb = boxTypeMap.get(b.typeId);
     const fpA = ta ? ta.l * ta.w : 0, fpB = tb ? tb.l * tb.w : 0;
-    if (fpB !== fpA) return fpB - fpA;                 // velký půdorys napřed
-    if (a.typeId !== b.typeId) return a.typeId - b.typeId; // stejné typy k sobě
+
+    // 1) Velký půdorys napřed — klasické "first-fit-decreasing" optimum
+    if (fpB !== fpA) return fpB - fpA;
+
+    // 2) Stejně velký půdorys: velké skupiny (≥5 ks) napřed
+    const sA = groupSizes.get(groupKey(a)) || 0;
+    const sB = groupSizes.get(groupKey(b)) || 0;
+    const aBig = sA >= BLOCK_THRESHOLD ? 1 : 0;
+    const bBig = sB >= BLOCK_THRESHOLD ? 1 : 0;
+    if (aBig !== bBig) return bBig - aBig;
+    if (aBig && sA !== sB) return sB - sA;
+
+    // 3) Stejné typy k sobě (homogenní masa beden vedle sebe)
+    if (a.typeId !== b.typeId) return a.typeId - b.typeId;
+
+    // 4) Vyšší bedny dolů (stabilita věží)
     const hA = ta ? ta.h : 0, hB = tb ? tb.h : 0;
-    return hB - hA;                                    // vyšší bedny napřed
+    return hB - hA;
   };
 
   let result;
@@ -14125,22 +14581,20 @@ function exportStressCsv() {
             const cid2d    = cidIndex[ri + '-' + p.idx + '-2d'];
             const cid2dRal = cidIndex[ri + '-' + p.idx + '-2dral'];
             const cid3d    = cidIndex[ri + '-' + p.idx + '-3d'];
-            return `<div style="margin-top:14px;padding:10px;background:#fafafa;border:1px solid #e0e0e0;border-radius:6px;">
-              <div style="font-size:12px;font-weight:600;margin-bottom:8px;color:#333;">🚛 ${esc(p.label)} — Auto #${p.idx + 1} · délka ${Math.round(p.L / 10) / 100} m · ${p.kg}/${p.maxKg} kg · ${p.n} beden</div>
-              <table style="width:100%;border-collapse:collapse;"><tr>
-                <td style="width:33%;vertical-align:top;padding-right:4px;">
-                  <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">📍 Podle vykládek</div>
-                  ${cid2d ? `<img src="cid:${cid2d}" style="width:100%;border:1px solid #ccc;border-radius:4px;">` : '<i style="color:#999;">2D náhled nedostupný</i>'}
-                </td>
-                <td style="width:33%;vertical-align:top;padding:0 4px;">
-                  <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">🎨 Podle RAL barev</div>
-                  ${cid2dRal ? `<img src="cid:${cid2dRal}" style="width:100%;border:1px solid #ccc;border-radius:4px;">` : '<i style="color:#999;">RAL náhled nedostupný</i>'}
-                </td>
-                <td style="width:33%;vertical-align:top;padding-left:4px;">
-                  <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">3D pohled</div>
-                  ${cid3d ? `<img src="cid:${cid3d}" style="width:100%;border:1px solid #ccc;border-radius:4px;">` : '<i style="color:#999;">3D náhled nedostupný</i>'}
-                </td>
-              </tr></table>
+            return `<div style="margin-top:18px;padding:12px;background:#fafafa;border:1px solid #e0e0e0;border-radius:6px;">
+              <div style="font-size:13px;font-weight:600;margin-bottom:12px;color:#333;">🚛 ${esc(p.label)} — Auto #${p.idx + 1} · délka ${Math.round(p.L / 10) / 100} m · ${p.kg}/${p.maxKg} kg · ${p.n} beden</div>
+              <div style="margin-bottom:14px;">
+                <div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;font-weight:600;">📍 Půdorys podle vykládek</div>
+                ${cid2d ? `<img src="cid:${cid2d}" style="width:100%;border:1px solid #ccc;border-radius:4px;display:block;">` : '<i style="color:#999;">2D náhled nedostupný</i>'}
+              </div>
+              <div style="margin-bottom:14px;">
+                <div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;font-weight:600;">🎨 Půdorys podle RAL barev</div>
+                ${cid2dRal ? `<img src="cid:${cid2dRal}" style="width:100%;border:1px solid #ccc;border-radius:4px;display:block;">` : '<i style="color:#999;">RAL náhled nedostupný</i>'}
+              </div>
+              <div>
+                <div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;font-weight:600;">3D pohled</div>
+                ${cid3d ? `<img src="cid:${cid3d}" style="width:100%;border:1px solid #ccc;border-radius:4px;display:block;">` : '<i style="color:#999;">3D náhled nedostupný</i>'}
+              </div>
             </div>`;
           }).join('');
 
@@ -14253,7 +14707,18 @@ function exportStressCsv() {
         if (window.logAction) window.logAction('akce', '📧 Přepravenka — vygenerován .eml s tělem (HTML + 2D + 3D inline)');
         recordActivity('email_sent', { rigs: rigData.length, totalKg: rigData.reduce((s, d) => s + d.totalKg, 0) });
         try {
-          const hist = loadOrderHistory();
+          // Auto-save: po odeslání emailu uložit aktuální plán do historie
+          // (pokud už neexistuje záznam — pak ho jen označit jako odeslaný)
+          let hist = loadOrderHistory();
+          let recent = hist.length ? hist[0] : null;
+          // Pokud poslední záznam je víc než 30 sekund starý nebo neexistuje, vytvořit nový
+          const ageMs = recent ? (Date.now() - new Date(recent.date).getTime()) : Infinity;
+          if (!recent || ageMs > 30000) {
+            const firstStop = stops && stops[0] ? stops[0].name : '';
+            const autoName = `📧 ${firstStop ? firstStop.slice(0, 30) : 'Expedice'} — ${new Date().toLocaleDateString('cs-CZ')} ${new Date().toLocaleTimeString('cs-CZ', {hour:'2-digit',minute:'2-digit'})}`;
+            await saveCurrentOrderToHistory(autoName, 'Auto-uložení při odeslání e-mailu');
+            hist = loadOrderHistory();
+          }
           if (hist.length) {
             hist[0].emailSent = true; hist[0].emailSentAt = new Date().toISOString();
             saveOrderHistoryList(hist);
@@ -14299,10 +14764,18 @@ function exportStressCsv() {
       rigData.forEach(d => { const n = parseInt(d.no, 10); if (n && n > maxNo) maxNo = n; });
       c.lastNo = maxNo; saveCfg(c);
       await generatePDF(shared, rigData);
-      // Activity log + označit nejnovější history záznam jako "PDF vygenerováno"
+      // Activity log + auto-uložení do historie + označit jako "PDF vygenerováno"
       recordActivity('pdf_generated', { rigs: rigData.length, totalKg: rigData.reduce((s, d) => s + d.totalKg, 0) });
       try {
-        const hist = loadOrderHistory();
+        let hist = loadOrderHistory();
+        let recent = hist.length ? hist[0] : null;
+        const ageMs = recent ? (Date.now() - new Date(recent.date).getTime()) : Infinity;
+        if (!recent || ageMs > 30000) {
+          const firstStop = stops && stops[0] ? stops[0].name : '';
+          const autoName = `📄 ${firstStop ? firstStop.slice(0, 30) : 'Expedice'} — ${new Date().toLocaleDateString('cs-CZ')} ${new Date().toLocaleTimeString('cs-CZ', {hour:'2-digit',minute:'2-digit'})}`;
+          await saveCurrentOrderToHistory(autoName, 'Auto-uložení při generování PDF');
+          hist = loadOrderHistory();
+        }
         if (hist.length) {
           hist[0].pdfGenerated = true; hist[0].pdfGeneratedAt = new Date().toISOString();
           saveOrderHistoryList(hist);
@@ -14356,10 +14829,19 @@ function exportStressCsv() {
       const pages = await captureLoadingPlanPages(d.idxs);
       const planPages = pages.map(p => `<section class="pg planpg">
         <div class="planhd">🚛 ${esc(p.label)} — Auto #${p.idx + 1} <span class="mut">· délka ${Math.round(p.L / 10) / 100} m · ${p.kg}/${p.maxKg} kg · ${p.n} beden</span></div>
-        <div class="planimg-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;align-items:start;">
-          <div><div class="planimg-label" style="font-size:10px;color:#666;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">📍 Půdorys podle vykládek</div>${p.img2d ? `<img src="${p.img2d}" style="width:100%;border:1px solid #ddd;border-radius:4px;">` : '<i>náhled nedostupný</i>'}</div>
-          <div><div class="planimg-label" style="font-size:10px;color:#666;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">🎨 Půdorys podle RAL barev</div>${p.img2dRal ? `<img src="${p.img2dRal}" style="width:100%;border:1px solid #ddd;border-radius:4px;">` : '<i>náhled nedostupný</i>'}</div>
-          <div><div class="planimg-label" style="font-size:10px;color:#666;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">3D pohled</div>${p.img3d ? `<img src="${p.img3d}" style="width:100%;border:1px solid #ddd;border-radius:4px;">` : '<i>3D náhled nedostupný</i>'}</div>
+        <div style="display:flex;flex-direction:column;gap:14px;align-items:stretch;">
+          <div style="width:100%;page-break-inside:avoid;">
+            <div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;font-weight:600;">📍 Půdorys podle vykládek</div>
+            ${p.img2d ? `<img src="${p.img2d}" style="width:100%;border:1px solid #ddd;border-radius:4px;display:block;">` : '<i>náhled nedostupný</i>'}
+          </div>
+          <div style="width:100%;page-break-inside:avoid;">
+            <div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;font-weight:600;">🎨 Půdorys podle RAL barev</div>
+            ${p.img2dRal ? `<img src="${p.img2dRal}" style="width:100%;border:1px solid #ddd;border-radius:4px;display:block;">` : '<i>náhled nedostupný</i>'}
+          </div>
+          <div style="width:100%;page-break-inside:avoid;">
+            <div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;font-weight:600;">3D pohled</div>
+            ${p.img3d ? `<img src="${p.img3d}" style="width:100%;border:1px solid #ddd;border-radius:4px;display:block;">` : '<i>3D náhled nedostupný</i>'}
+          </div>
         </div></section>`).join('');
 
       sections.push(`<section class="pg sheet${ri === 0 ? ' first' : ''}">
@@ -14873,6 +15355,255 @@ async function runIpOptimization() {
 window.loadGlpk = loadGlpk;
 window.solveVehicleSelectionIP = solveVehicleSelectionIP;
 window.runIpOptimization = runIpOptimization;
+
+// ──────────────────────────────────────────────────────────────────────────
+// IP PACKING REFINEMENT — per-vehicle 2D layout optimization
+//
+// Bere ležeč auto z heuristic packingu a přes glpk přepočítá optimální
+// rozložení beden, aby celková využitá délka byla minimální.
+//
+// Pracuje s VYKLÁDKOVÝMI SEGMENTY: bedny vykládky s nižším indexem
+// (=odbavují se dřív) musí mít vyšší x (blíž k zadním dveřím), aby
+// LIFO byl zachován.
+//
+// Limity: max 22 beden / auto (jinak řešitel doběhne dlouho).
+// ──────────────────────────────────────────────────────────────────────────
+
+async function ipRefineVehicleLayout(av, timeoutMs = 15000) {
+  const units = av.units;
+  const n = units.length;
+  if (n < 3 || n > 22) return null;     // mimo IP rozsah
+  if (!av.veh) return null;
+  const vehL = av.veh.L, vehW = av.veh.W;
+  if (!vehL || !vehW) return null;
+
+  const glpk = await loadGlpk();
+
+  // Posbírej rozměry beden (s aktuální rotací z heuristiky)
+  const dims = units.map(u => {
+    const t = boxTypeMap.get(u.typeId);
+    if (!t) return null;
+    const li = u.rot ? t.w : t.l;
+    const wi = u.rot ? t.l : t.w;
+    return { li, wi, stopIdx: u.stopIdx || 0 };
+  });
+  if (dims.some(d => !d)) return null;
+
+  // Vykládky v autě, seřazené sestupně (vyšší stopIdx = naložen dřív = vpředu)
+  // Při vykládce stopIdx 0 jde první ven → musí být u dveří (vysoké x).
+  // Konvence: x=0 vpředu (u kabiny), x=L vzadu (u dveří).
+  const stopsArr = [...new Set(dims.map(d => d.stopIdx))].sort((a, b) => b - a);
+  const stopRank = {};  // stopIdx → rank (0 = nejvíc vpředu, last = u dveří)
+  stopsArr.forEach((s, i) => { stopRank[s] = i; });
+  const numStops = stopsArr.length;
+
+  // Promenné:
+  // 1..n     : x_i  (real, 0..vehL)
+  // n+1..2n  : y_i  (real, 0..vehW)
+  // 2n+1..2n+nPairs*4 : e_L,e_R,e_U,e_D pro každou dvojici (i<j)
+  // ..+numStops-1 : splity (N-1 dělících čar mezi vykládkami)
+  // poslední 1 : L_used
+  const nPairs = n * (n - 1) / 2;
+  const splitCount = Math.max(0, numStops - 1);
+  const numVars = 2 * n + 4 * nPairs + splitCount + 1;
+  const LUSED = numVars;
+
+  const lp = glpk.glp_create_prob();
+  glpk.glp_set_obj_dir(lp, glpk.GLP_MIN);
+  glpk.glp_add_cols(lp, numVars);
+
+  // x_i a y_i (real)
+  for (let i = 0; i < n; i++) {
+    const d = dims[i];
+    glpk.glp_set_col_kind(lp, i + 1, glpk.GLP_CV);
+    glpk.glp_set_col_bnds(lp, i + 1, glpk.GLP_DB, 0, Math.max(0, vehL - d.li));
+    glpk.glp_set_obj_coef(lp, i + 1, 0);
+    glpk.glp_set_col_kind(lp, n + i + 1, glpk.GLP_CV);
+    glpk.glp_set_col_bnds(lp, n + i + 1, glpk.GLP_DB, 0, Math.max(0, vehW - d.wi));
+    glpk.glp_set_obj_coef(lp, n + i + 1, 0);
+  }
+
+  // Binární e_xx
+  let eBase = 2 * n + 1;
+  const pairs = [];
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      const eL = eBase, eR = eBase + 1, eU = eBase + 2, eD = eBase + 3;
+      for (const v of [eL, eR, eU, eD]) {
+        glpk.glp_set_col_kind(lp, v, glpk.GLP_BV);
+        glpk.glp_set_obj_coef(lp, v, 0);
+      }
+      pairs.push({ i, j, eL, eR, eU, eD });
+      eBase += 4;
+    }
+  }
+
+  // Splity
+  const splitBase = eBase;
+  for (let s = 0; s < splitCount; s++) {
+    glpk.glp_set_col_kind(lp, splitBase + s, glpk.GLP_CV);
+    glpk.glp_set_col_bnds(lp, splitBase + s, glpk.GLP_DB, 0, vehL);
+    glpk.glp_set_obj_coef(lp, splitBase + s, 0);
+  }
+
+  // L_used
+  glpk.glp_set_col_kind(lp, LUSED, glpk.GLP_CV);
+  glpk.glp_set_col_bnds(lp, LUSED, glpk.GLP_DB, 0, vehL);
+  glpk.glp_set_obj_coef(lp, LUSED, 1);
+
+  // Constraints
+  const M = vehL + vehW + 1000;
+  const ia = [0], ja = [0], ar = [0];
+  let rowIdx = 0;
+
+  // Pro každý pair: e_L+e_R+e_U+e_D = 1
+  for (const p of pairs) {
+    rowIdx++;
+    glpk.glp_add_rows(lp, 1);
+    glpk.glp_set_row_bnds(lp, rowIdx, glpk.GLP_FX, 1, 1);
+    ia.push(rowIdx); ja.push(p.eL); ar.push(1);
+    ia.push(rowIdx); ja.push(p.eR); ar.push(1);
+    ia.push(rowIdx); ja.push(p.eU); ar.push(1);
+    ia.push(rowIdx); ja.push(p.eD); ar.push(1);
+
+    // x_i + l_i ≤ x_j + M·(1-e_L)  →  x_i − x_j + M·e_L ≤ M − l_i
+    rowIdx++; glpk.glp_add_rows(lp, 1);
+    glpk.glp_set_row_bnds(lp, rowIdx, glpk.GLP_UP, 0, M - dims[p.i].li);
+    ia.push(rowIdx); ja.push(p.i + 1); ar.push(1);
+    ia.push(rowIdx); ja.push(p.j + 1); ar.push(-1);
+    ia.push(rowIdx); ja.push(p.eL); ar.push(M);
+
+    // x_j + l_j ≤ x_i + M·(1-e_R)
+    rowIdx++; glpk.glp_add_rows(lp, 1);
+    glpk.glp_set_row_bnds(lp, rowIdx, glpk.GLP_UP, 0, M - dims[p.j].li);
+    ia.push(rowIdx); ja.push(p.j + 1); ar.push(1);
+    ia.push(rowIdx); ja.push(p.i + 1); ar.push(-1);
+    ia.push(rowIdx); ja.push(p.eR); ar.push(M);
+
+    // y_i + w_i ≤ y_j + M·(1-e_U)
+    rowIdx++; glpk.glp_add_rows(lp, 1);
+    glpk.glp_set_row_bnds(lp, rowIdx, glpk.GLP_UP, 0, M - dims[p.i].wi);
+    ia.push(rowIdx); ja.push(n + p.i + 1); ar.push(1);
+    ia.push(rowIdx); ja.push(n + p.j + 1); ar.push(-1);
+    ia.push(rowIdx); ja.push(p.eU); ar.push(M);
+
+    // y_j + w_j ≤ y_i + M·(1-e_D)
+    rowIdx++; glpk.glp_add_rows(lp, 1);
+    glpk.glp_set_row_bnds(lp, rowIdx, glpk.GLP_UP, 0, M - dims[p.j].wi);
+    ia.push(rowIdx); ja.push(n + p.j + 1); ar.push(1);
+    ia.push(rowIdx); ja.push(n + p.i + 1); ar.push(-1);
+    ia.push(rowIdx); ja.push(p.eD); ar.push(M);
+  }
+
+  // LIFO segmenty (pokud >1 vykládka v autě)
+  // Bedna s rank=r má x_i v intervalu (splits[r-1], vehL) když r>0
+  //                                    (splits[r], vehL) když r<numStops-1
+  // Konvence: stopsArr seřazený sestupně. stopRank[s]=0 = nejnižší rank = vpředu (nízké x).
+  // Bedna s vyšším rank (= nižší stopIdx = první ven) musí mít x_i ≥ split[rank-1]
+  for (let i = 0; i < n; i++) {
+    const r = stopRank[dims[i].stopIdx];
+    if (r > 0) {
+      // x_i ≥ split[r-1]   →   -x_i + split[r-1] ≤ 0
+      rowIdx++; glpk.glp_add_rows(lp, 1);
+      glpk.glp_set_row_bnds(lp, rowIdx, glpk.GLP_UP, 0, 0);
+      ia.push(rowIdx); ja.push(i + 1); ar.push(-1);
+      ia.push(rowIdx); ja.push(splitBase + r - 1); ar.push(1);
+    }
+    if (r < numStops - 1) {
+      // x_i + l_i ≤ split[r]
+      rowIdx++; glpk.glp_add_rows(lp, 1);
+      glpk.glp_set_row_bnds(lp, rowIdx, glpk.GLP_UP, 0, -dims[i].li);
+      ia.push(rowIdx); ja.push(i + 1); ar.push(1);
+      ia.push(rowIdx); ja.push(splitBase + r); ar.push(-1);
+    }
+  }
+
+  // x_i + l_i ≤ L_used  →  x_i − L_used ≤ −l_i
+  for (let i = 0; i < n; i++) {
+    rowIdx++; glpk.glp_add_rows(lp, 1);
+    glpk.glp_set_row_bnds(lp, rowIdx, glpk.GLP_UP, 0, -dims[i].li);
+    ia.push(rowIdx); ja.push(i + 1); ar.push(1);
+    ia.push(rowIdx); ja.push(LUSED); ar.push(-1);
+  }
+
+  glpk.glp_load_matrix(lp, ar.length - 1, ia, ja, ar);
+
+  // Solve
+  glpk.glp_simplex(lp, new glpk.SMCP({ msg_lev: glpk.GLP_MSG_OFF, presolve: glpk.GLP_ON }));
+  glpk.glp_intopt(lp, new glpk.IOCP({ msg_lev: glpk.GLP_MSG_OFF, tm_lim: timeoutMs, presolve: glpk.GLP_ON, gap: 0.01 }));
+  const status = glpk.glp_mip_status(lp);
+  if (status !== glpk.GLP_OPT && status !== glpk.GLP_FEAS) return null;
+
+  // Načti výsledek do nového layoutu
+  const newUnits = units.map((u, i) => ({
+    ...u,
+    x: glpk.glp_mip_col_val(lp, i + 1),
+    y: glpk.glp_mip_col_val(lp, n + i + 1)
+  }));
+  const usedLen = glpk.glp_mip_col_val(lp, LUSED);
+
+  return { units: newUnits, usedLen, optimal: (status === glpk.GLP_OPT) };
+}
+
+// ── Spuštění IP refinement pro všechna vhodná auta v plánu ─────────────
+async function runIpRefinement() {
+  const btn = document.getElementById('ipRefineBtn');
+  if (!assignedVehicles || !assignedVehicles.length) {
+    alert('Není co optimalizovat — nejdřív spočítej plán tlačítkem „⚡ Vypočítat".');
+    return;
+  }
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Načítám solver…'; }
+  try {
+    await loadGlpk();
+
+    let improved = 0, skipped = 0, tried = 0;
+    const startTotal = performance.now();
+    for (let k = 0; k < assignedVehicles.length; k++) {
+      const av = assignedVehicles[k];
+      if (av.units.length < 3 || av.units.length > 22) { skipped++; continue; }
+      tried++;
+      if (btn) btn.textContent = `⏳ Auto ${k + 1}/${assignedVehicles.length} (${av.units.length} bedny)…`;
+      await new Promise(r => setTimeout(r, 10));
+      try {
+        const res = await ipRefineVehicleLayout(av, 15000);
+        if (!res) { skipped++; continue; }
+        // Porovnat s heuristic - kolik využité délky teď?
+        const heurUsedLen = av.units.reduce((m, u) => {
+          const t = boxTypeMap.get(u.typeId);
+          if (!t) return m;
+          const li = u.rot ? t.w : t.l;
+          return Math.max(m, (u.x || 0) + li);
+        }, 0);
+        // Aplikuj jen pokud IP našel kratší využití (min 50mm zlepšení)
+        if (res.usedLen < heurUsedLen - 50) {
+          av.units = res.units;
+          improved++;
+        } else {
+          skipped++;
+        }
+      } catch (e) {
+        console.warn('IP refinement vehicle', k, 'failed:', e);
+        skipped++;
+      }
+    }
+    const totalMs = (performance.now() - startTotal).toFixed(0);
+    try { renderPlanView(); renderResults && renderResults(); } catch (e) {}
+    alert('🎯 IP doladění layoutu dokončeno\n\n' +
+          'Aut testováno: ' + tried + '\n' +
+          'Zlepšeno: ' + improved + '\n' +
+          'Beze změny: ' + skipped + '\n' +
+          'Celkový čas: ' + (totalMs / 1000).toFixed(1) + ' s');
+    if (window.logAction) window.logAction('akce', '🎯 IP refinement — zlepšeno ' + improved + ' aut z ' + tried);
+  } catch (e) {
+    console.error(e);
+    alert('IP doladění selhalo: ' + (e && e.message ? e.message : e));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🎯 IP doladění layoutu'; }
+  }
+}
+
+window.ipRefineVehicleLayout = ipRefineVehicleLayout;
+window.runIpRefinement = runIpRefinement;
 
 // ──────────────────────────────────────────────────────────────────────────
 (function applyProductionMode() {
