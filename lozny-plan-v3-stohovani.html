@@ -171,9 +171,8 @@ header h1 {
 
 /* Box types */
 .box-types-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 10px;
+  display: block;
+  width: 100%;
 }
 
 .box-def-card {
@@ -798,22 +797,46 @@ canvas { display: block; }
   <div class="tab-bar">
     <button class="tab active" data-page="pageOrder">1. Objednávka</button>
     <button class="tab" data-page="pageResults">2. Výsledky</button>
+    <button class="tab" data-page="pageProfile" style="border-color:var(--purple,#b07fff);color:var(--purple,#b07fff);" title="Můj profil — historie ložných plánů, přepravenek a e-mailů">👤 Profil</button>
     <button class="tab" data-page="pageStress" style="display:none;border-color:#f97316;color:#f97316;" title="Stress test ložných plánů">⚡ Stress test</button>
     <button class="tab" data-page="pageGuide" style="border-color:var(--green,#3dd68c);color:var(--green,#3dd68c);" title="Návod – jak appku používat">❓ Návod</button>
   </div>
-  <div style="margin-left:12px;display:flex;gap:8px;align-items:center;">
+  <div style="margin-left:auto;display:flex;gap:6px;align-items:center;">
+    <!-- 1. Primární akce: Nová objednávka -->
     <button onclick="newOrder()" title="Vymazat vše a začít novou objednávku načisto"
-      style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;padding:6px 14px;border-radius:4px;cursor:pointer;border:1px solid var(--accent);color:#000;background:var(--accent);font-weight:700;text-transform:uppercase;transition:all 0.15s;white-space:nowrap;">➕ Nová objednávka</button>
-    <button id="savePlanBtn" style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;padding:6px 14px;border-radius:4px;cursor:pointer;border:1px solid var(--green);color:var(--green);background:rgba(61,214,140,0.08);text-transform:uppercase;transition:all 0.15s;white-space:nowrap;">💾 Uložit plán</button>
-    <button id="loadPlanBtn" style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;padding:6px 14px;border-radius:4px;cursor:pointer;border:1px solid var(--purple);color:var(--purple);background:rgba(176,127,255,0.08);text-transform:uppercase;transition:all 0.15s;white-space:nowrap;">📂 Načíst plán</button>
-    <button id="historyBtn" onclick="openOrderHistoryModal()" title="Otevřít historii uložených zakázek (lokálně v prohlížeči)" style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;padding:6px 14px;border-radius:4px;cursor:pointer;border:1px solid var(--accent);color:var(--accent);background:rgba(240,192,64,0.08);text-transform:uppercase;transition:all 0.15s;white-space:nowrap;">📚 Historie</button>
-    <button id="saveToHistoryBtn" onclick="saveCurrentToHistoryWithName()" title="Uložit aktuální spočítaný plán do historie (lokálně)" style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;padding:6px 14px;border-radius:4px;cursor:pointer;border:1px solid var(--orange,#f97316);color:var(--orange,#f97316);background:rgba(249,115,22,0.08);text-transform:uppercase;transition:all 0.15s;white-space:nowrap;">⭐ Uložit do historie</button>
-    <label for="jsonImportInput" style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;padding:6px 14px;border-radius:4px;cursor:pointer;border:1px solid var(--orange);color:var(--orange);background:rgba(255,159,67,0.08);text-transform:uppercase;transition:all 0.15s;white-space:nowrap;" title="Nahrát .lozny.json soubor">⬆ Nahrát .json</label>
-    <input type="file" id="jsonImportInput" accept=".json,.lozny.json" style="display:none;">
-    <label for="xlsxInput" title="Hromadný import objednávek z Excelu / CSV. Otevře dialog s výběrem souboru. Sloupce: OBJEDNATEL, ZASTAVKA_ADRESA, X_DELKA_MM, Y_SIRKA_MM, Z_VYSKA_MM, HMOTNOST_KG, POCET (volit.), HI (vnitřní výška), VIKO, NAZEV. Pokud máš zadané objednávky, zeptá se: přidat k existujícím, nebo nahradit. Stejné rozměry typů se NEduplicují — sloučí se s existujícím typem. Návod a vzor: ❓ Návod → sekce Import z Excelu." style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;padding:6px 14px;border-radius:4px;cursor:pointer;border:1px solid var(--blue);color:var(--blue);background:rgba(77,159,255,0.08);text-transform:uppercase;transition:all 0.15s;white-space:nowrap;">📥 Excel</label>
+      style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;padding:7px 14px;border-radius:4px;cursor:pointer;border:1px solid var(--accent);color:#000;background:var(--accent);font-weight:700;text-transform:uppercase;transition:all 0.15s;white-space:nowrap;">➕ Nová</button>
+
+    <!-- 2. Dropdown Plán: ukládání/načítání/historie -->
+    <div style="position:relative;display:inline-block;" id="planMenuWrap">
+      <button onclick="(function(e){var l=document.getElementById('planMenuList');l.style.display=l.style.display==='block'?'none':'block';if(l.style.display==='block')setTimeout(()=>{document.addEventListener('click',function h(ev){if(!document.getElementById('planMenuWrap').contains(ev.target)){l.style.display='none';document.removeEventListener('click',h);}});},10);})(event)"
+        title="Plán: uložit / načíst / historie"
+        style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;padding:7px 14px;border-radius:4px;cursor:pointer;border:1px solid var(--green);color:var(--green);background:rgba(61,214,140,0.08);text-transform:uppercase;transition:all 0.15s;white-space:nowrap;">💾 Plán <span style="font-size:9px;opacity:.7;margin-left:2px;">▾</span></button>
+      <div id="planMenuList" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:var(--panel,#1c2030);border:1px solid var(--border,#30363d);border-radius:8px;padding:5px;z-index:9000;min-width:240px;box-shadow:0 6px 18px rgba(0,0,0,0.5);">
+        <button id="savePlanBtn" class="dm-item" title="Uložit aktuální plán jako .lozny.json soubor">💾 Uložit do souboru</button>
+        <button id="loadPlanBtn" class="dm-item" title="Načíst .lozny.json soubor (s předchozí Storage)">📂 Načíst plán</button>
+        <label for="jsonImportInput" class="dm-item" style="display:block;cursor:pointer;" title="Nahrát .lozny.json přímo ze souboru">⬆ Nahrát .json soubor</label>
+        <input type="file" id="jsonImportInput" accept=".json,.lozny.json" style="display:none;">
+        <div style="height:1px;background:var(--border);margin:4px 0;"></div>
+        <button id="saveToHistoryBtn" onclick="if(typeof saveCurrentToHistoryWithName==='function')saveCurrentToHistoryWithName();else alert('Funkce není dostupná - obnov stránku.');document.getElementById('planMenuList').style.display='none';" class="dm-item" style="color:var(--orange,#f97316);" title="Uložit aktuální spočítaný plán do lokální historie">⭐ Uložit do historie</button>
+        <div style="height:1px;background:var(--border);margin:4px 0;"></div>
+        <button onclick="if(typeof loadTestOrderCH==='function'){loadTestOrderCH();document.getElementById('planMenuList').style.display='none';}else alert('Funkce není dostupná.');" class="dm-item" style="color:var(--green,#3dd68c);" title="Nahraje testovací objednávku CH (3 vykládky) — užitečné pro vyzkoušení appky">📦 Načíst testovací objednávku (CH)</button>
+      </div>
+    </div>
+
+    <!-- 3. Import Excel — vlastní, často používané -->
+    <label for="xlsxInput" title="Hromadný import objednávek z Excelu / CSV. Otevře dialog s výběrem souboru. Sloupce: OBJEDNATEL, ZASTAVKA_ADRESA, X_DELKA_MM, Y_SIRKA_MM, Z_VYSKA_MM, HMOTNOST_KG, POCET, HI, VIKO, NAZEV. Stejné rozměry typů se NEduplicují — sloučí se s existujícím typem. Návod a vzor: ❓ Návod → sekce Import z Excelu."
+      style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;padding:7px 14px;border-radius:4px;cursor:pointer;border:1px solid var(--blue);color:var(--blue);background:rgba(77,159,255,0.08);text-transform:uppercase;transition:all 0.15s;white-space:nowrap;">📥 Excel</label>
     <input type="file" id="xlsxInput" accept=".xlsx,.xls,.csv" style="display:none;">
+
+    <!-- 4. Historie zakázek -->
+    <button id="historyBtn" onclick="if(typeof openOrderHistoryModal==='function'){openOrderHistoryModal();}else{alert('Historie není dostupná. Otevři Vývojářské nástroje (Cmd+Opt+I) → Console — pošli mi červené chyby.');}" title="Otevřít historii uložených zakázek (lokálně v prohlížeči)" style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;padding:7px 14px;border-radius:4px;cursor:pointer;border:1px solid var(--accent);color:var(--accent);background:rgba(240,192,64,0.08);text-transform:uppercase;transition:all 0.15s;white-space:nowrap;">📚 Historie</button>
+
+    <!-- 5. Profile widget — vpravo -->
+    <button id="profileWidget" onclick="(function(){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));var tb=document.querySelector('[data-page=\'pageProfile\']');if(tb)tb.classList.add('active');var pg=document.getElementById('pageProfile');if(pg)pg.classList.add('active');if(typeof renderProfilePage==='function')renderProfilePage();})();" title="Můj profil" style="margin-left:4px;display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:18px;border:1px solid var(--purple,#b07fff);background:rgba(176,127,255,0.10);cursor:pointer;white-space:nowrap;transition:all 0.15s;height:32px;"><span style="font-size:11px;color:var(--muted);">👤 Bez profilu</span></button>
     <span id="importStatus" style="font-size:10px;color:var(--muted);font-family:'IBM Plex Mono',monospace;"></span>
     <span id="wsIndicator" style="font-size:9px;color:var(--muted);font-family:'IBM Plex Mono',monospace;margin-left:4px;"></span>
+    <button onclick="syncFromServer(false)" title="Stáhnout nejnovější verzi typů beden a vozového parku ze serveru (sdílené napříč všemi uživateli). Pokud máš lokálně něco navíc, automaticky se to spojí." style="font-size:9px;font-family:'IBM Plex Mono',monospace;padding:3px 8px;margin-left:4px;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:3px;cursor:pointer;letter-spacing:0.5px;">☁ SYNC</button>
+    <button onclick="if(confirm('Nahrát TVOJE lokální typy beden a vozový park na server (přidat k existujícím, ne přepsat)?')) pushToServer();" title="Poslat tvoje aktuální typy beden a vozový park na server, aby je viděli i kolegové. Server neudělá nic destruktivního — jen přidá unikátní položky." style="font-size:9px;font-family:'IBM Plex Mono',monospace;padding:3px 8px;margin-left:2px;background:transparent;border:1px solid var(--green,#3dd68c);color:var(--green,#3dd68c);border-radius:3px;cursor:pointer;letter-spacing:0.5px;">📤 NAHRÁT MÉ</button>
     <button onclick="resetWorkspace()" title="Resetovat na výchozí nastavení"
       style="font-size:9px;padding:3px 8px;border-radius:4px;cursor:pointer;border:1px solid var(--border);
              color:var(--muted);background:none;font-family:'IBM Plex Mono',monospace;margin-left:4px;">
@@ -862,7 +885,7 @@ canvas { display: block; }
   </div>
 
   <div style="padding:16px 24px 20px;display:flex;gap:8px;">
-    <button class="calc-btn" id="calcBtn" style="flex:1;">⚡ Vypočítat ložné plány</button>
+    <button class="calc-btn" id="calcBtn" style="flex:1;" title="Spočítá ložné plány: 8 heuristických variant (A-J) + automatické IP doladění layoutu v každém autě (glpk.js, max 22 beden/auto). Solver se stáhne při prvním kliknutí (~1.2 MB).">⚡ Vypočítat ložné plány</button>
     <div id="devMenuWrap" style="position:relative;display:inline-block;">
       <button class="btn btn-ghost" id="devMenuBtn" onclick="toggleDevMenu()" title="Testy, učení, stress, trenér, log"
         style="border-color:var(--blue);color:var(--blue);padding:10px 14px;border-radius:8px;font-size:11px;cursor:pointer;white-space:nowrap;">
@@ -1042,6 +1065,22 @@ canvas { display: block; }
       <button class="btn btn-ghost" id="mCancelBtn">Zrušit</button>
       <button class="btn btn-primary" id="mSaveBtn">Přidat</button>
     </div>
+  </div>
+</div>
+
+<!-- ══ PAGE: PROFIL ══ -->
+<div class="page" id="pageProfile">
+  <div style="flex:1;overflow-y:auto;padding:24px 28px 60px;max-width:1100px;margin:0 auto;width:100%;">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;border-bottom:2px solid var(--purple,#b07fff);padding-bottom:12px;">
+      <div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--purple,#b07fff),var(--blue,#4d9fff));display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;font-weight:700;" id="profileAvatar">?</div>
+      <div style="flex:1;">
+        <h2 id="profileHeading" style="margin:0;font-size:22px;color:var(--text);">Můj profil</h2>
+        <div id="profileSubtitle" style="font-size:12px;color:var(--muted);margin-top:3px;">Profil ti umožní zaznamenat, kdo plány vytvořil a komu byly odeslány e-mailem.</div>
+      </div>
+      <button id="editProfileBtn" onclick="openProfileEditModal()" style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;padding:8px 16px;border-radius:4px;cursor:pointer;border:1px solid var(--purple,#b07fff);color:var(--purple,#b07fff);background:rgba(176,127,255,0.08);text-transform:uppercase;">✏ Upravit profil</button>
+    </div>
+
+    <div id="profileContent" style="display:flex;flex-direction:column;gap:18px;"></div>
   </div>
 </div>
 
@@ -1238,6 +1277,11 @@ canvas { display: block; }
           <li>Přepne tě na záložku „1. Objednávka" — vidíš výsledek a můžeš pokračovat výpočtem.</li>
         </ol>
         <p><b>Vzor tabulky:</b> <i>(názvy sloupců nezáleží na velikosti písmen ani podtržítkách)</i></p>
+        <div style="margin:8px 0;padding:8px 12px;border-left:4px solid var(--orange,#f97316);background:rgba(249,115,22,0.08);font-size:11px;color:var(--text);border-radius:4px;">
+          ⚠ <b>Adresa musí být úplná</b>, aby fungoval našeptávač a mapa rozvozu (Nominatim / OSM).<br>
+          Formát: <code>ulice + č.p., PSČ město, země</code> — např. <code>Industriestrasse 12, 6023 Rothenburg, Switzerland</code>.<br>
+          <span style="color:var(--muted);">Pouhé město („Rothenburg LU") nestačí — geokódování selže a vykládka nepůjde umístit na mapu.</span>
+        </div>
         <div style="overflow-x:auto;border:1px solid var(--border);border-radius:6px;margin:8px 0;">
         <table style="width:100%;border-collapse:collapse;font-size:10px;font-family:'IBM Plex Mono',monospace;">
           <thead>
@@ -1255,15 +1299,15 @@ canvas { display: block; }
             </tr>
           </thead>
           <tbody style="color:var(--muted);">
-            <tr><td style="border:1px solid var(--border);padding:5px 8px;">Bieri Alteisen</td><td style="border:1px solid var(--border);padding:5px 8px;">Rothenburg LU</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">1600</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">1200</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">1100</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">200</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">27</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">980</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">0</td><td style="border:1px solid var(--border);padding:5px 8px;">CPR 19.00</td></tr>
-            <tr><td style="border:1px solid var(--border);padding:5px 8px;">Bieri Alteisen</td><td style="border:1px solid var(--border);padding:5px 8px;">Rothenburg LU</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">1200</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">800</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">920</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">105</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">9</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">800</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">0</td><td style="border:1px solid var(--border);padding:5px 8px;">CPR 08.00</td></tr>
-            <tr><td style="border:1px solid var(--border);padding:5px 8px;">Schneider</td><td style="border:1px solid var(--border);padding:5px 8px;">Aarauerstrasse 112, Brugg</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">1600</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">1200</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">1260</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">220</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">10</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">1140</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">0</td><td style="border:1px solid var(--border);padding:5px 8px;">CPR 22.00</td></tr>
+            <tr><td style="border:1px solid var(--border);padding:5px 8px;">Bieri Alteisen GmbH</td><td style="border:1px solid var(--border);padding:5px 8px;">Industriestrasse 12, 6023 Rothenburg, Switzerland</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">1600</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">1200</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">1100</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">200</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">27</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">980</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">0</td><td style="border:1px solid var(--border);padding:5px 8px;">CPR 19.00</td></tr>
+            <tr><td style="border:1px solid var(--border);padding:5px 8px;">Bieri Alteisen GmbH</td><td style="border:1px solid var(--border);padding:5px 8px;">Industriestrasse 12, 6023 Rothenburg, Switzerland</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">1200</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">800</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">920</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">105</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">9</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">800</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">0</td><td style="border:1px solid var(--border);padding:5px 8px;">CPR 08.00</td></tr>
+            <tr><td style="border:1px solid var(--border);padding:5px 8px;">Schneider Umweltservice AG</td><td style="border:1px solid var(--border);padding:5px 8px;">Aarauerstrasse 112, 5200 Brugg, Switzerland</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">1600</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">1200</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">1260</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">220</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">10</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">1140</td><td style="border:1px solid var(--border);padding:5px 8px;text-align:right;">0</td><td style="border:1px solid var(--border);padding:5px 8px;">CPR 22.00</td></tr>
           </tbody>
         </table>
         </div>
         <p><b>Které sloupce jsou povinné a které ne:</b></p>
         <table style="width:100%;border-collapse:collapse;font-size:11px;margin:6px 0;">
-          <tr style="background:rgba(255,255,255,0.04);"><td style="padding:5px 8px;width:130px;"><b>Povinné</b></td><td style="padding:5px 8px;color:var(--muted);">rozměry <code>X_DELKA_MM</code>, <code>Y_SIRKA_MM</code>, <code>Z_VYSKA_MM</code> · adresa <code>ZASTAVKA_ADRESA</code></td></tr>
+          <tr style="background:rgba(255,255,255,0.04);"><td style="padding:5px 8px;width:130px;"><b>Povinné</b></td><td style="padding:5px 8px;color:var(--muted);">rozměry <code>X_DELKA_MM</code>, <code>Y_SIRKA_MM</code>, <code>Z_VYSKA_MM</code> · <b>úplná adresa</b> <code>ZASTAVKA_ADRESA</code> ve formátu <i>ulice + č.p., PSČ + město, země</i> — např. <code>Industriestrasse 12, 6023 Rothenburg, Switzerland</code></td></tr>
           <tr><td style="padding:5px 8px;"><b>Volitelné</b></td><td style="padding:5px 8px;color:var(--muted);"><code>OBJEDNATEL</code> (jinak „Import") · <code>HMOTNOST_KG</code> · <code>POCET</code> (default 1) · <code>HI</code> (vnitřní výška — pro vnoření kontejnerů; jinak 85 % výšky) · <code>VIKO</code> (výška víka v mm) · <code>NAZEV</code> (název typu bedny)</td></tr>
         </table>
         <p style="font-size:11px;color:var(--muted);"><b>Pozn.:</b> Sloupce <code>HI</code> a <code>VIKO</code> ovlivňují, zda do bedny lze něco vnořit. Když je <code>HI &lt; Z_VYSKA_MM</code>, bedna má vnitřní prostor pro menší bednu. Když <code>VIKO &gt; 0</code>, bedna má víko a vnoření se na ní nepoužije.</p>
@@ -1304,10 +1348,6 @@ function guideDemoAdd(name,color){
 // stops[] = flattened addresses sorted by GPS route (for packing)
 // ══════════════════════════════════════════════════════
 let boxTypes = [
-  { id: 1, name: 'Box S',  l:  950, w:  600, h:  800, hi:  700, kg:  69, color: '#4d9fff' },
-  { id: 2, name: 'Box M',  l: 1200, w:  800, h:  920, hi:  800, kg: 110, color: '#3dd68c' },
-  { id: 3, name: 'Box L',  l: 1600, w: 1200, h:  920, hi:  800, kg: 190, color: '#f0c040' },
-  { id: 4, name: 'Box XL', l: 1200, w: 1200, h: 1260, hi: 1100, kg: 230, color: '#ff9f43' },
   // ── LacNam / ZinNam série ─────────────────────────────────────────
   // h = stacking výška (vnitřní výška z provozního listu), hi = ložná výška (clearance)
   { id: 5, name:'CPR 04.00 LacNam',     l: 800, w: 600, h: 920, hi: 800, kg: 70,  color:'#a8d8ea' },
@@ -1362,14 +1402,104 @@ const ELKOPLAST_LOGO_DATAURI = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAP
 //                  = false → vše zobrazeno (vývojářský režim)
 //   APP_VERSION   → semantická verze, zobrazí se v patičce
 // ──────────────────────────────────────────────────────────────────────────
-const IS_PRODUCTION = true;
+const IS_PRODUCTION = false;
 const APP_VERSION = '1.0.0';
+
+// Globální HTML escape — používá ho mnoho modal funkcí (profile, history)
+// Funkce definované jako 'function esc(...)' jsou v top-level scope a stávají
+// se vlastnostmi `window`. Vnořené `const esc` v jiných funkcích ho mohou shadowovat,
+// to je v pořádku — vnitřní const přebije globální v rámci své funkce.
+if (typeof window.esc === 'undefined') {
+  window.esc = function (s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  };
+}
+function esc(s) { return window.esc(s); }
 
 // ──────────────────────────────────────────────────────────────────────────
 // HISTORIE ZAKÁZEK — lokální databáze v prohlížeči
 // Ukládá spočítané ložné plány pro pozdější otevření/srovnání/analýzu.
 // Funguje OFFLINE (localStorage). Max 30 položek; export do JSON souboru.
 // ──────────────────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────────────────
+// PROFIL UŽIVATELE — lokální (každý prohlížeč/zařízení má svůj)
+// Aplikace zůstává přístupná všem, profil je dobrovolný a slouží pro:
+//   - zápis autora u plánů a přepravenek
+//   - audit log činnosti (kdo co kdy vytvořil/odeslal)
+//   - předvyplnění kontaktů (jméno, e-mail, telefon) do přepravenky
+// ──────────────────────────────────────────────────────────────────────────
+const USER_PROFILE_KEY = 'elkoplast_user_profile_v1';
+const ACTIVITY_LOG_KEY = 'elkoplast_activity_log_v1';
+const ACTIVITY_LOG_LIMIT = 500;
+
+function loadUserProfile() {
+  try { return JSON.parse(localStorage.getItem(USER_PROFILE_KEY)) || null; }
+  catch (e) { return null; }
+}
+
+function saveUserProfile(profile) {
+  if (!profile) { localStorage.removeItem(USER_PROFILE_KEY); return; }
+  try { localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(profile)); return true; }
+  catch (e) { return false; }
+}
+
+function createOrUpdateUserProfile(name, email, phone, role) {
+  const existing = loadUserProfile();
+  const profile = existing || {
+    id: 'u_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+    createdAt: new Date().toISOString()
+  };
+  profile.name  = (name  || '').trim();
+  profile.email = (email || '').trim();
+  profile.phone = (phone || '').trim();
+  profile.role  = (role  || '').trim();
+  profile.updatedAt = new Date().toISOString();
+  saveUserProfile(profile);
+  // Sdílet profil v týmovém seznamu na serveru
+  if (typeof pushToServer === 'function') {
+    try { pushToServer(); } catch (e) {}
+  }
+  return profile;
+}
+
+function getUserDisplayName() {
+  const p = loadUserProfile();
+  return p && p.name ? p.name : 'Anonym';
+}
+
+function loadActivityLog() {
+  try { return JSON.parse(localStorage.getItem(ACTIVITY_LOG_KEY)) || []; }
+  catch (e) { return []; }
+}
+
+function saveActivityLog(list) {
+  try { localStorage.setItem(ACTIVITY_LOG_KEY, JSON.stringify(list)); return true; }
+  catch (e) { return false; }
+}
+
+// Záznam činnosti — typ: 'plan_saved' | 'pdf_generated' | 'email_sent' | 'plan_loaded'
+function recordActivity(type, details) {
+  const profile = loadUserProfile();
+  const entry = {
+    id: 'a_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+    type,
+    date: new Date().toISOString(),
+    userId:   profile ? profile.id   : null,
+    userName: profile ? profile.name : 'Anonym',
+    details: details || {}
+  };
+  const list = loadActivityLog();
+  list.unshift(entry);
+  if (list.length > ACTIVITY_LOG_LIMIT) list.length = ACTIVITY_LOG_LIMIT;
+  saveActivityLog(list);
+  // Sdílet activity log se serverem
+  if (typeof pushToServer === 'function') {
+    try { pushToServer(); } catch (e) {}
+  }
+  return entry;
+}
+
 const ORDER_HISTORY_KEY    = 'elkoplast_order_history_v1';
 const ORDER_HISTORY_LIMIT  = 30;
 
@@ -1423,11 +1553,16 @@ async function saveCurrentOrderToHistory(customName, customNote) {
   const vehicleLabels = assignedVehicles.map(av => av.veh && av.veh.label).filter(Boolean);
   const stopsTxt = (stops || []).map(s => s && s.address).filter(Boolean).join(' / ');
 
+  const profile = loadUserProfile();
   const entry = {
     id: Date.now() + '_' + Math.random().toString(36).slice(2, 8),
     name: customName || ('Zakázka ' + new Date().toLocaleDateString('cs-CZ') + ' ' + new Date().toLocaleTimeString('cs-CZ').slice(0, 5)),
     note: customNote || '',
     date: new Date().toISOString(),
+    userId:   profile ? profile.id   : null,
+    userName: profile ? profile.name : 'Anonym',
+    pdfGenerated: false,
+    emailSent: false,
     stats: { vehicleCount: assignedVehicles.length, totalKg, totalBoxes, totalM3: +totalM3.toFixed(2),
              orderCount: (orders || []).length, vehicleLabels, stopsTxt },
     snapshot2D,
@@ -1435,7 +1570,8 @@ async function saveCurrentOrderToHistory(customName, customNote) {
       orders: orders || [], boxTypes: boxTypes || [], stops: stops || [],
       assignedVehicles: (assignedVehicles || []).map(av => ({
         veh: av.veh, units: av.units, layout: av.layout, parked: av.parked || []
-      }))
+      })),
+      globalParked: (window._globalParked || []).map(p => ({ ...p }))
     }
   };
 
@@ -1452,6 +1588,7 @@ async function saveCurrentOrderToHistory(customName, customNote) {
     }
   }
   if (window.logAction) window.logAction('akce', '💾 Historie — uložena zakázka „' + entry.name + '"');
+  recordActivity('plan_saved', { historyId: entry.id, name: entry.name, vehicleCount: entry.stats.vehicleCount, totalKg: entry.stats.totalKg });
   return entry;
 }
 
@@ -1461,6 +1598,9 @@ function deleteFromOrderHistory(id) {
   if (idx < 0) return false;
   list.splice(idx, 1);
   saveOrderHistoryList(list);
+  if (typeof pushToServer === 'function') {
+    try { pushToServer(); } catch (e) {}
+  }
   return true;
 }
 
@@ -1508,6 +1648,10 @@ function loadOrderFromHistory(id) {
     boxTypes = e.state.boxTypes || [];
     stops = e.state.stops || [];
     assignedVehicles = e.state.assignedVehicles || [];
+    // Obnovit globální parkovací zónu (nebo prázdná, pokud starší záznam)
+    window._globalParked = e.state.globalParked || [];
+    // Migrace legacy per-vehicle parked → global (pro starší záznamy v historii)
+    try { migrateLegacyParked(); } catch (er) {}
     selectedVehicleIdx = 0;
     rebuildBoxTypeMap();
     try { renderBoxTypes(); } catch (er) {}
@@ -1520,6 +1664,7 @@ function loadOrderFromHistory(id) {
     try { renderResults(); renderPlanView(); } catch (er) {}
     document.getElementById('orderHistoryModal')?.remove();
     if (window.logAction) window.logAction('akce', '📂 Historie — načtena zakázka „' + e.name + '"');
+    recordActivity('plan_loaded', { historyId: e.id, name: e.name });
   } catch (err) {
     alert('Načtení selhalo: ' + err.message);
   }
@@ -1536,11 +1681,18 @@ function openOrderHistoryModal() {
   const items = list.map(e => {
     const dt = new Date(e.date).toLocaleString('cs-CZ');
     const s = e.stats || {};
+    const author = e.userName ? `<span style="color:var(--purple,#b07fff);font-weight:600;">👤 ${esc(e.userName)}</span>` : '<span style="color:var(--muted);">👤 Anonym</span>';
+    const pdfBadge = e.pdfGenerated
+      ? `<span style="display:inline-block;padding:2px 7px;border-radius:10px;background:rgba(240,192,64,0.15);color:var(--accent,#f0c040);font-size:9px;font-weight:600;margin-left:4px;" title="PDF vygenerováno ${e.pdfGeneratedAt ? new Date(e.pdfGeneratedAt).toLocaleString('cs-CZ') : ''}">📄 PDF</span>`
+      : '';
+    const emailBadge = e.emailSent
+      ? `<span style="display:inline-block;padding:2px 7px;border-radius:10px;background:rgba(77,159,255,0.15);color:var(--blue,#4d9fff);font-size:9px;font-weight:600;margin-left:4px;" title="E-mail odeslán ${e.emailSentAt ? new Date(e.emailSentAt).toLocaleString('cs-CZ') : ''}">✉ odesláno</span>`
+      : '';
     return `<div style="display:flex;gap:12px;padding:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:6px;margin-bottom:8px;">
       <div style="flex:0 0 140px;">${e.snapshot2D ? `<img src="${e.snapshot2D}" style="width:100%;border-radius:4px;border:1px solid var(--border);">` : '<div style="background:#0d1117;border-radius:4px;padding:30px 0;text-align:center;color:var(--muted);font-size:10px;">bez náhledu</div>'}</div>
       <div style="flex:1;min-width:0;">
-        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px;">${esc(e.name)}</div>
-        <div style="font-size:10px;color:var(--muted);margin-bottom:6px;">${dt}</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px;">${esc(e.name)}${pdfBadge}${emailBadge}</div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:6px;">${dt} · ${author}</div>
         <div style="font-size:11px;color:var(--text);line-height:1.5;">
           ${s.vehicleCount || 0} vozidel · ${s.totalBoxes || 0} beden · ${s.totalKg || 0} kg · ${s.totalM3 || 0} m³ · ${s.orderCount || 0} objednávek<br>
           <span style="color:var(--muted);">${s.vehicleLabels ? s.vehicleLabels.join(', ') : ''}</span>
@@ -1592,6 +1744,371 @@ async function saveCurrentToHistoryWithName() {
     }
   }
 }
+
+// ──────────────────────────────────────────────────────────────────────────
+// PROFIL UI — vykreslení stránky Profil + modal pro úpravu profilu
+// ──────────────────────────────────────────────────────────────────────────
+function renderProfilePage() {
+  const profile = loadUserProfile();
+  const avatar  = document.getElementById('profileAvatar');
+  const heading = document.getElementById('profileHeading');
+  const subtitle = document.getElementById('profileSubtitle');
+  const content = document.getElementById('profileContent');
+  if (!content) return;
+
+  // hlavička
+  if (profile && profile.name) {
+    avatar.textContent = profile.name.trim()[0].toUpperCase();
+    heading.textContent = profile.name + (profile.role ? ' · ' + profile.role : '');
+    subtitle.innerHTML = (profile.email ? '✉ ' + esc(profile.email) : '') +
+      (profile.email && profile.phone ? ' · ' : '') +
+      (profile.phone ? '☎ ' + esc(profile.phone) : '') +
+      (!profile.email && !profile.phone ? '' : '') +
+      ` <span style="color:var(--muted);">· vytvořeno ${new Date(profile.createdAt).toLocaleDateString('cs-CZ')}</span>`;
+  } else {
+    avatar.textContent = '?';
+    heading.textContent = 'Profil nevytvořen';
+    subtitle.textContent = 'Klikni na „Upravit profil" a doplň jméno, e-mail a telefon. Pak se každý plán a přepravenka budou označovat tvým jménem.';
+  }
+
+  // Statistiky této osoby (z order history)
+  const allHistory = loadOrderHistory();
+  const myHistory = profile ? allHistory.filter(h => h.userId === profile.id) : allHistory;
+  const allActivity = loadActivityLog();
+  const myActivity = profile ? allActivity.filter(a => a.userId === profile.id) : allActivity;
+
+  const plansCount = myHistory.length;
+  const pdfCount   = myHistory.filter(h => h.pdfGenerated).length;
+  const emailCount = myHistory.filter(h => h.emailSent).length;
+  const totalKgSum = myHistory.reduce((s, h) => s + (h.stats?.totalKg || 0), 0);
+  const totalBoxSum = myHistory.reduce((s, h) => s + (h.stats?.totalBoxes || 0), 0);
+
+  // STATS panel
+  const statsHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">
+      <div style="padding:14px 18px;background:rgba(176,127,255,0.08);border:1px solid var(--purple,#b07fff);border-radius:8px;">
+        <div style="font-size:10px;color:var(--purple,#b07fff);text-transform:uppercase;letter-spacing:0.5px;">Ložné plány</div>
+        <div style="font-size:24px;font-weight:700;margin-top:4px;">${plansCount}</div>
+      </div>
+      <div style="padding:14px 18px;background:rgba(240,192,64,0.08);border:1px solid var(--accent,#f0c040);border-radius:8px;">
+        <div style="font-size:10px;color:var(--accent,#f0c040);text-transform:uppercase;letter-spacing:0.5px;">PDF přepravenky</div>
+        <div style="font-size:24px;font-weight:700;margin-top:4px;">${pdfCount}</div>
+      </div>
+      <div style="padding:14px 18px;background:rgba(77,159,255,0.08);border:1px solid var(--blue,#4d9fff);border-radius:8px;">
+        <div style="font-size:10px;color:var(--blue,#4d9fff);text-transform:uppercase;letter-spacing:0.5px;">Odesláno e-mailem</div>
+        <div style="font-size:24px;font-weight:700;margin-top:4px;">${emailCount}</div>
+      </div>
+      <div style="padding:14px 18px;background:rgba(61,214,140,0.08);border:1px solid var(--green,#3dd68c);border-radius:8px;">
+        <div style="font-size:10px;color:var(--green,#3dd68c);text-transform:uppercase;letter-spacing:0.5px;">Celkem ks beden</div>
+        <div style="font-size:24px;font-weight:700;margin-top:4px;">${totalBoxSum}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px;">${Math.round(totalKgSum/100)/10} t hmotnost</div>
+      </div>
+    </div>`;
+
+  // HISTORIE PLÁNŮ - karty
+  const historyHTML = myHistory.length ? `
+    <div>
+      <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">📚 Tvé ložné plány (${myHistory.length})</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        ${myHistory.slice(0, 20).map(h => {
+          const dt = new Date(h.date).toLocaleString('cs-CZ');
+          const s = h.stats || {};
+          const pdfBadge = h.pdfGenerated
+            ? `<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:rgba(240,192,64,0.15);color:var(--accent,#f0c040);font-size:10px;font-weight:600;" title="PDF vygenerováno ${h.pdfGeneratedAt ? new Date(h.pdfGeneratedAt).toLocaleString('cs-CZ') : ''}">📄 PDF</span>`
+            : `<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:rgba(255,255,255,0.05);color:var(--muted);font-size:10px;" title="Přepravenka zatím nevygenerována">📄 ne</span>`;
+          const emailBadge = h.emailSent
+            ? `<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:rgba(77,159,255,0.15);color:var(--blue,#4d9fff);font-size:10px;font-weight:600;" title="E-mail odeslán ${h.emailSentAt ? new Date(h.emailSentAt).toLocaleString('cs-CZ') : ''}">✉ odesláno</span>`
+            : `<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:rgba(255,255,255,0.05);color:var(--muted);font-size:10px;" title="E-mail zatím neodeslán">✉ ne</span>`;
+          return `<div style="display:flex;gap:12px;padding:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:6px;">
+            <div style="flex:0 0 120px;">${h.snapshot2D ? `<img src="${h.snapshot2D}" style="width:100%;border-radius:4px;border:1px solid var(--border);">` : '<div style="background:#0d1117;border-radius:4px;padding:24px 0;text-align:center;color:var(--muted);font-size:10px;">bez náhledu</div>'}</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px;">${esc(h.name)}</div>
+              <div style="font-size:10px;color:var(--muted);margin-bottom:6px;">${dt}</div>
+              <div style="font-size:11px;color:var(--text);line-height:1.5;">
+                ${s.vehicleCount || 0} vozidel · ${s.totalBoxes || 0} beden · ${s.totalKg || 0} kg
+                ${s.vehicleLabels ? '<div style="color:var(--muted);margin-top:2px;font-size:10px;">' + esc(s.vehicleLabels.join(', ')) + '</div>' : ''}
+              </div>
+              <div style="display:flex;gap:6px;margin-top:8px;align-items:center;">
+                ${pdfBadge}
+                ${emailBadge}
+              </div>
+            </div>
+            <div style="flex:0 0 auto;display:flex;flex-direction:column;gap:4px;">
+              <button onclick="loadOrderFromHistory('${h.id}')" style="padding:6px 10px;font-size:11px;border-radius:4px;border:1px solid var(--green,#3dd68c);background:rgba(61,214,140,0.1);color:var(--green,#3dd68c);cursor:pointer;white-space:nowrap;">📂 Otevřít</button>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+      ${myHistory.length > 20 ? `<div style="text-align:center;margin-top:10px;font-size:11px;color:var(--muted);">... a dalších ${myHistory.length - 20}. Kompletní historii uvidíš v tlačítku „📚 Historie" v hlavičce.</div>` : ''}
+    </div>` : `
+    <div style="padding:30px;text-align:center;color:var(--muted);background:rgba(255,255,255,0.03);border-radius:8px;border:1px dashed var(--border);">
+      <div style="font-size:36px;opacity:0.4;">📂</div>
+      <div style="margin-top:8px;font-size:13px;">Zatím nemáš uložený žádný ložný plán.</div>
+      <div style="font-size:11px;margin-top:4px;">Po výpočtu plánu klikni na „⭐ Uložit do historie" v hlavičce.</div>
+    </div>`;
+
+  // AKTIVITA - audit log
+  const activityHTML = myActivity.length ? `
+    <div>
+      <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">🕘 Tvá aktivita (${myActivity.length})</div>
+      <div style="display:flex;flex-direction:column;gap:4px;max-height:340px;overflow-y:auto;padding-right:6px;">
+        ${myActivity.slice(0, 50).map(a => {
+          const dt = new Date(a.date).toLocaleString('cs-CZ');
+          const icons = { plan_saved:'⭐ Uložen plán', pdf_generated:'📄 Vygenerováno PDF', email_sent:'✉ Odeslán e-mail', plan_loaded:'📂 Načten plán' };
+          const colors = { plan_saved:'var(--orange,#f97316)', pdf_generated:'var(--accent,#f0c040)', email_sent:'var(--blue,#4d9fff)', plan_loaded:'var(--green,#3dd68c)' };
+          const label = icons[a.type] || a.type;
+          const color = colors[a.type] || 'var(--muted)';
+          let detail = '';
+          if (a.type === 'plan_saved' && a.details?.name) detail = ' — ' + a.details.name + (a.details.totalKg ? ` · ${a.details.totalKg} kg` : '');
+          else if (a.type === 'pdf_generated' && a.details?.rigs) detail = ` — ${a.details.rigs} souprav${a.details.totalKg ? ` · ${a.details.totalKg} kg` : ''}`;
+          else if (a.type === 'email_sent' && a.details?.rigs)   detail = ` — ${a.details.rigs} souprav`;
+          return `<div style="display:flex;gap:10px;padding:6px 10px;background:rgba(255,255,255,0.03);border-radius:4px;font-size:11px;">
+            <div style="color:${color};font-weight:600;flex:0 0 160px;">${label}</div>
+            <div style="flex:1;color:var(--text);">${esc(detail)}</div>
+            <div style="color:var(--muted);flex:0 0 auto;font-family:'IBM Plex Mono',monospace;">${dt}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>` : '';
+
+  content.innerHTML = statsHTML + historyHTML + activityHTML;
+}
+
+// Modal pro úpravu profilu
+function openProfileEditModal() {
+  document.getElementById('profileEditModal')?.remove();
+  const p = loadUserProfile() || {};
+  const m = document.createElement('div');
+  m.id = 'profileEditModal';
+  m.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;padding:24px;';
+  m.onclick = (ev) => { if (ev.target === m) m.remove(); };
+  m.innerHTML = `<div style="background:var(--panel,#1c2030);border:1px solid var(--border);border-radius:10px;max-width:480px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,0.6);">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--border);">
+      <div style="font-size:16px;font-weight:700;color:var(--text);">👤 ${p.name ? 'Upravit profil' : 'Vytvořit profil'}</div>
+      <div style="font-size:10px;color:var(--muted);margin-top:2px;">Profil je uložen lokálně v tomto prohlížeči. Slouží jako „podpis" u plánů a přepravenek.</div>
+    </div>
+    <div style="padding:18px 22px;display:flex;flex-direction:column;gap:12px;">
+      <label style="display:flex;flex-direction:column;gap:4px;">
+        <span style="font-size:11px;color:var(--muted);font-weight:600;">Jméno a příjmení *</span>
+        <input id="pfName" type="text" value="${esc(p.name||'')}" placeholder="Např. Jan Novák" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:8px 10px;font-size:13px;font-family:inherit;">
+      </label>
+      <label style="display:flex;flex-direction:column;gap:4px;">
+        <span style="font-size:11px;color:var(--muted);font-weight:600;">E-mail</span>
+        <input id="pfEmail" type="email" value="${esc(p.email||'')}" placeholder="jan.novak@elkoplast.cz" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:8px 10px;font-size:13px;font-family:inherit;">
+      </label>
+      <label style="display:flex;flex-direction:column;gap:4px;">
+        <span style="font-size:11px;color:var(--muted);font-weight:600;">Telefon</span>
+        <input id="pfPhone" type="tel" value="${esc(p.phone||'')}" placeholder="+420 123 456 789" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:8px 10px;font-size:13px;font-family:inherit;">
+      </label>
+      <label style="display:flex;flex-direction:column;gap:4px;">
+        <span style="font-size:11px;color:var(--muted);font-weight:600;">Pozice / role</span>
+        <input id="pfRole" type="text" value="${esc(p.role||'')}" placeholder="Např. Dispečer / Sales / Engineering" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:8px 10px;font-size:13px;font-family:inherit;">
+      </label>
+    </div>
+    <div style="padding:14px 22px;border-top:1px solid var(--border);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+      <div>
+        ${p.name ? `<button onclick="if(confirm('Smazat celý profil? Aktivita zůstane, ale ztratí přiřazení.')){saveUserProfile(null);document.getElementById('profileEditModal').remove();renderProfilePage();updateProfileWidget();}" style="padding:8px 14px;font-size:11px;border-radius:4px;border:1px solid var(--red,#e24b4a);background:transparent;color:var(--red,#e24b4a);cursor:pointer;">🗑 Smazat profil</button>` : ''}
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="document.getElementById('profileEditModal').remove();" style="padding:8px 14px;font-size:11px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;">Zrušit</button>
+        <button onclick="saveProfileFromModal()" style="padding:8px 18px;font-size:11px;border-radius:4px;border:none;background:var(--purple,#b07fff);color:#fff;cursor:pointer;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">${p.name ? '💾 Uložit' : '✓ Vytvořit profil'}</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(m);
+  setTimeout(() => document.getElementById('pfName')?.focus(), 50);
+}
+
+function saveProfileFromModal() {
+  const name  = document.getElementById('pfName').value.trim();
+  const email = document.getElementById('pfEmail').value.trim();
+  const phone = document.getElementById('pfPhone').value.trim();
+  const role  = document.getElementById('pfRole').value.trim();
+  if (!name) { alert('Jméno je povinné.'); return; }
+  createOrUpdateUserProfile(name, email, phone, role);
+  // při prvním vytvoření profilu propagovat do přepravenkového cfg, ať se předvyplní
+  try {
+    const cfg = (typeof loadCfg === 'function') ? loadCfg() : null;
+    if (cfg) {
+      if (!cfg.objednal)        cfg.objednal        = name;
+      if (!cfg.objednal_email)  cfg.objednal_email  = email;
+      if (!cfg.objednal_tel)    cfg.objednal_tel    = phone;
+      if (typeof saveCfg === 'function') saveCfg(cfg);
+    }
+  } catch (e) {}
+  document.getElementById('profileEditModal').remove();
+  renderProfilePage();
+  updateProfileWidget();
+}
+
+// Widget v hlavičce — malý ovál s avatarem + jménem
+function updateProfileWidget() {
+  const w = document.getElementById('profileWidget');
+  if (!w) return;
+  const p = loadUserProfile();
+  if (p && p.name) {
+    const initial = p.name.trim()[0].toUpperCase();
+    w.innerHTML = `<span style="width:20px;height:20px;border-radius:50%;background:linear-gradient(135deg,var(--purple,#b07fff),var(--blue,#4d9fff));display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:10px;">${esc(initial)}</span>
+      <span style="font-size:11px;color:var(--text);font-weight:600;">${esc(p.name)}</span>`;
+    w.title = 'Tvůj profil: ' + p.name + (p.email ? ' · ' + p.email : '');
+  } else {
+    w.innerHTML = `<span style="font-size:11px;color:var(--muted);">👤 Bez profilu</span>`;
+    w.title = 'Klikni pro vytvoření profilu';
+  }
+}
+
+// ── Export profil / historie funkcí na window (pojistka proti shadowingu) ───
+window.loadUserProfile         = loadUserProfile;
+window.saveUserProfile         = saveUserProfile;
+window.createOrUpdateUserProfile = createOrUpdateUserProfile;
+window.getUserDisplayName      = getUserDisplayName;
+window.recordActivity          = recordActivity;
+window.loadActivityLog         = loadActivityLog;
+window.loadOrderHistory        = loadOrderHistory;
+window.saveOrderHistoryList    = saveOrderHistoryList;
+window.deleteFromOrderHistory  = deleteFromOrderHistory;
+window.exportOrderHistory      = exportOrderHistory;
+window.importOrderHistoryFile  = importOrderHistoryFile;
+window.loadOrderFromHistory    = loadOrderFromHistory;
+window.openOrderHistoryModal   = openOrderHistoryModal;
+window.saveCurrentOrderToHistory = saveCurrentOrderToHistory;
+window.saveCurrentToHistoryWithName = saveCurrentToHistoryWithName;
+window.renderProfilePage       = renderProfilePage;
+window.openProfileEditModal    = openProfileEditModal;
+window.saveProfileFromModal    = saveProfileFromModal;
+window.updateProfileWidget     = updateProfileWidget;
+
+// ──────────────────────────────────────────────────────────────────────────
+// RAL BARVY — výběr barvy beden (paleta + ruční zadání)
+// Bedny na ložném plánu lze zobrazit barevně podle RAL barev (alternativa
+// ke zbarvení podle pořadí vykládky). RAL barva se ukládá na úrovni
+// adresa + typId, struktura: addr.rals[typeId] = { ral: 'RAL 5010', hex: '#0E294B' }
+// ──────────────────────────────────────────────────────────────────────────
+const RAL_PALETTE = [
+  // Žluté/oranžové
+  { ral: 'RAL 1003', name: 'Signální žlutá',  hex: '#F7BA0B' },
+  { ral: 'RAL 1018', name: 'Zinková žlutá',   hex: '#F8F32B' },
+  { ral: 'RAL 1023', name: 'Dopravní žlutá',  hex: '#F0CA00' },
+  { ral: 'RAL 2003', name: 'Pastelově oranžová', hex: '#F08F1C' },
+  { ral: 'RAL 2004', name: 'Čistě oranžová',  hex: '#E25303' },
+  { ral: 'RAL 2009', name: 'Dopravní oranžová', hex: '#D4652F' },
+  // Červené
+  { ral: 'RAL 3000', name: 'Ohnivě červená',  hex: '#AF2B1E' },
+  { ral: 'RAL 3003', name: 'Rubínově červená',hex: '#A52019' },
+  { ral: 'RAL 3020', name: 'Dopravní červená',hex: '#CC0605' },
+  // Růžové/fialové
+  { ral: 'RAL 4005', name: 'Modře šeříková',  hex: '#6C4675' },
+  // Modré
+  { ral: 'RAL 5002', name: 'Ultramarínově modrá', hex: '#20214F' },
+  { ral: 'RAL 5005', name: 'Signální modrá',  hex: '#1E2460' },
+  { ral: 'RAL 5010', name: 'Hořcově modrá',   hex: '#0E294B' },
+  { ral: 'RAL 5012', name: 'Světle modrá',    hex: '#2581C4' },
+  { ral: 'RAL 5015', name: 'Nebesky modrá',   hex: '#2271B3' },
+  { ral: 'RAL 5017', name: 'Dopravní modrá',  hex: '#063971' },
+  // Zelené
+  { ral: 'RAL 6001', name: 'Smaragdově zelená', hex: '#287233' },
+  { ral: 'RAL 6005', name: 'Mechově zelená',  hex: '#2F4538' },
+  { ral: 'RAL 6018', name: 'Žlutozelená',     hex: '#57A639' },
+  { ral: 'RAL 6024', name: 'Dopravní zelená', hex: '#008351' },
+  // Hnědé
+  { ral: 'RAL 8001', name: 'Okrově hnědá',    hex: '#9D622B' },
+  { ral: 'RAL 8003', name: 'Jílově hnědá',    hex: '#7E4B26' },
+  { ral: 'RAL 8011', name: 'Ořechově hnědá',  hex: '#5A3A29' },
+  { ral: 'RAL 8017', name: 'Čokoládově hnědá',hex: '#45322E' },
+  // Šedé
+  { ral: 'RAL 7016', name: 'Antracitově šedá',hex: '#293133' },
+  { ral: 'RAL 7035', name: 'Světle šedá',     hex: '#CBD0CC' },
+  { ral: 'RAL 7040', name: 'Okenní šedá',     hex: '#9DA1AA' },
+  // Černá/bílá
+  { ral: 'RAL 9005', name: 'Hluboce černá',   hex: '#0A0A0A' },
+  { ral: 'RAL 9006', name: 'Bílý hliník',     hex: '#A5A5A5' },
+  { ral: 'RAL 9010', name: 'Čistě bílá',      hex: '#FDFDFD' },
+  { ral: 'RAL 9016', name: 'Dopravní bílá',   hex: '#F6F6F6' },
+];
+
+// Najdi RAL barvu podle kódu nebo hex
+function findRalColor(input) {
+  if (!input) return null;
+  const s = String(input).trim();
+  // Hledej dle RAL kódu (např. "RAL 5010" nebo "5010")
+  const ralMatch = s.match(/(?:RAL\s*)?(\d{4})/i);
+  if (ralMatch) {
+    const code = ralMatch[1];
+    const found = RAL_PALETTE.find(p => p.ral === 'RAL ' + code);
+    if (found) return found;
+    return { ral: 'RAL ' + code, name: 'vlastní', hex: '#808080' };
+  }
+  // Hex hodnota
+  if (/^#[0-9A-Fa-f]{6}$/.test(s)) {
+    const found = RAL_PALETTE.find(p => p.hex.toLowerCase() === s.toLowerCase());
+    return found || { ral: 'vlastní', name: s, hex: s };
+  }
+  return null;
+}
+
+// Otevři paletový picker pro daný typeId v adrese
+function openRalPicker(anchorBtn, addr, typeId, onSelect) {
+  document.querySelectorAll('.ral-picker').forEach(d => d.remove());
+  const dd = document.createElement('div');
+  dd.className = 'ral-picker';
+  const rect = anchorBtn.getBoundingClientRect();
+  const MAX_H = 360, MARGIN = 8;
+  const spaceBelow = window.innerHeight - rect.bottom;
+  const openUp = spaceBelow < (MAX_H + MARGIN) && rect.top > spaceBelow;
+  const topPx = openUp ? Math.max(MARGIN, rect.top - MAX_H - 4) : rect.bottom + 4;
+  const h = openUp ? Math.min(MAX_H, rect.top - MARGIN) : Math.min(MAX_H, spaceBelow - MARGIN);
+  dd.style.cssText = `position:fixed;top:${topPx}px;left:${Math.max(8, rect.left - 100)}px;z-index:10000;
+    background:var(--panel,#1c2030);border:1px solid var(--border,#30363d);border-radius:8px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.6);width:300px;max-height:${h}px;overflow-y:auto;padding:8px;`;
+
+  const current = (addr.rals && addr.rals[typeId]) || null;
+  let html = `<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">RAL barva (vyber nebo napiš)</div>`;
+  html += `<input type="text" id="ralCustomInput" placeholder="např. RAL 5010 nebo #0E294B" value="${current ? esc(current.ral) : ''}" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:5px 8px;font-family:'IBM Plex Mono',monospace;font-size:11px;margin-bottom:8px;box-sizing:border-box;">`;
+  html += `<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px;">`;
+  RAL_PALETTE.forEach(p => {
+    const isSel = current && current.ral === p.ral;
+    html += `<button data-ral="${p.ral}" data-hex="${p.hex}" title="${p.ral} — ${p.name}" style="width:100%;aspect-ratio:1;background:${p.hex};border:${isSel ? '2px solid var(--accent,#f0c040)' : '1px solid var(--border)'};border-radius:4px;cursor:pointer;padding:0;"></button>`;
+  });
+  html += `</div>`;
+  if (current) {
+    html += `<button id="ralClearBtn" style="margin-top:10px;width:100%;padding:5px;background:transparent;border:1px solid var(--red,#e24b4a);color:var(--red,#e24b4a);border-radius:4px;cursor:pointer;font-size:11px;">✕ Odebrat barvu</button>`;
+  }
+  dd.innerHTML = html;
+  document.body.appendChild(dd);
+
+  dd.querySelectorAll('button[data-ral]').forEach(b => {
+    b.addEventListener('click', () => {
+      const sel = { ral: b.dataset.ral, hex: b.dataset.hex };
+      if (!addr.rals) addr.rals = {};
+      addr.rals[typeId] = sel;
+      dd.remove();
+      if (typeof onSelect === 'function') onSelect(sel);
+    });
+  });
+  dd.querySelector('#ralCustomInput').addEventListener('change', (e) => {
+    const found = findRalColor(e.target.value);
+    if (found) {
+      if (!addr.rals) addr.rals = {};
+      addr.rals[typeId] = { ral: found.ral, hex: found.hex };
+      dd.remove();
+      if (typeof onSelect === 'function') onSelect(found);
+    }
+  });
+  dd.querySelector('#ralClearBtn')?.addEventListener('click', () => {
+    if (addr.rals) delete addr.rals[typeId];
+    dd.remove();
+    if (typeof onSelect === 'function') onSelect(null);
+  });
+  setTimeout(() => document.addEventListener('click', function h(ev) {
+    if (!dd.contains(ev.target) && ev.target !== anchorBtn) {
+      dd.remove(); document.removeEventListener('click', h);
+    }
+  }), 10);
+}
+
+window.RAL_PALETTE = RAL_PALETTE;
+window.findRalColor = findRalColor;
+window.openRalPicker = openRalPicker;
 
 const ORDER_COLORS = ['#f0c040','#4d9fff','#3dd68c','#ff9f43','#b07fff','#ff5f57','#00d4ff'];
 let orders = [
@@ -1662,6 +2179,10 @@ function flattenStops() {
         name: addr.address,
         orderName: order.name,
         orderColor: order.color,
+        customer: order.customer || '',                // název firmy odběratele
+        orderNo:  order.orderNo  || '',                // číslo objednávky
+        serials:  { ...(addr.serials || {}) },         // výrobní čísla per typeId
+        rals:     { ...(addr.rals || {}) },            // RAL barvy per typeId
         boxes: { ...addr.boxes },
       });
     });
@@ -2049,6 +2570,8 @@ function rigCounts(vehicles) {
 }
 
 async function computeAllVehicles() {
+  // Při novém výpočtu vyresetovat globální parkovací zónu — nové bedny, nový start
+  if (typeof window !== 'undefined') window._globalParked = [];
   // Čekající (odložené) objednávky — nabídni jejich zahrnutí jako doplnění
   const pend = orders.filter(o => o.pending && o.includeInCalc === false &&
     o.addresses.some(a => Object.values(a.boxes || {}).some(q => q > 0)));
@@ -2070,12 +2593,67 @@ async function computeAllVehicles() {
   const _cargoKg  = units.reduce((s, u) => { const t = boxTypeMap.get(u.typeId); return s + (t ? (t.kg || 0) : 0); }, 0);
 
   const presets = getSelectedPresets();  // jen auta zaškrtnutá v checklistu
+  const results = [];
+
+  // Pokud IP solver doporučil konkrétní flotilu, použij ji přímo a vrať
+  // ji jako jediný výsledek (přeskočíme iteraci přes všechny presety).
+  // Pro packing uvnitř použijeme všech 8 VARIANT_DEFS a vybereme nejlepší.
+  if (window._ipForcedFleet && window._ipForcedFleet.length) {
+    showCalcProgress();
+    updateCalcProgress('IP doporučení: ' + window._ipForcedFleet.length + ' aut');
+    await new Promise(r => setTimeout(r, 10));
+    const savedFleet = fleet;
+    _stressFastPack = true; _optimizing = true; _layerLimit = 0;
+    const ipFleet = window._ipForcedFleet.map((v, i) => ({ ...v, id: i + 1 }));
+    const ipLabel = 'IP ' + (() => {
+      const sum = {}; ipFleet.forEach(f => sum[f.label] = (sum[f.label]||0)+1);
+      return Object.entries(sum).map(([l,n])=>n+'×'+l).join('+');
+    })();
+    try {
+      fleet = ipFleet;
+      let bestVariant = null;
+      for (const vdef of VARIANT_DEFS) {
+        boxTypes.forEach(bt => { delete bt._forceFlat; delete bt._preferStack; });
+        if (vdef.forceFlat) boxTypes.forEach(bt => { bt._forceFlat = true; });
+        if (vdef.preferStack) boxTypes.forEach(bt => { bt._preferStack = true; });
+        _nestingEnabled = (vdef.nesting !== false);
+        _overhangNestAllowed = (vdef.overhangNest !== false);
+        _fullNest = (vdef.fullNest === true);
+        _noLidNesting = (vdef.noLidNesting === true);
+        _crossStopStacking = (vdef.crossStopStacking === true);
+        let vehicles = null;
+        try {
+          if (vdef.strategy === 'setcover')      vehicles = packSetCover(units);
+          else if (vdef.strategy === 'grasp')    vehicles = packGRASP(units);
+          else if (vdef.strategy === 'blocks')   vehicles = packBlocks(units);
+          else if (vdef.strategy === 'blockstops') vehicles = packBlockStops(units, vdef);
+          else                                   vehicles = packVariant(units, getVariantSortFn(vdef.sortKey));
+        } catch (e) { vehicles = null; }
+        if (!vehicles || !vehicles.length) continue;
+        const metrics = scoreVariantDetailed(vehicles);
+        const placedAll = vehicles.reduce((s, av) => s + av.units.length, 0) >= units.length;
+        if (!placedAll) continue;
+        const score = (metrics.spaceEff || 0) * (metrics.vehUtil || 0) / 100;
+        if (!bestVariant || score > bestVariant.score) {
+          bestVariant = { vehicles, metrics, score, vdef };
+        }
+      }
+      if (bestVariant) {
+        results.push({ preset: { label: ipLabel }, vehicles: bestVariant.vehicles, metrics: bestVariant.metrics, score: bestVariant.score, variant: bestVariant.vdef.id, ipSelected: true });
+      }
+    } finally {
+      fleet = savedFleet; _stressFastPack = false; _optimizing = false;
+      window._ipForcedFleet = null;          // jednorázové
+    }
+    hideCalcProgress();
+    return results;
+  }
+
   showCalcProgress();
   await new Promise(r => setTimeout(r, 10));
 
   const savedFleet = fleet;
   _stressFastPack = true; _optimizing = true; _layerLimit = 0;
-  const results = [];
   try {
     for (let pi = 0; pi < presets.length; pi++) {
       const preset = presets[pi];
@@ -2221,12 +2799,235 @@ async function computeAllVehicles() {
 
   // seřaď: nejdřív ty co se vejdou, pak nejmíň vozidel, pak nejlepší skóre
   results.sort((a, b) => (b.valid - a.valid) || (a.metrics.n - b.metrics.n) || ((b.metrics.score || 0) - (a.metrics.score || 0)));
+
+  // 🎲 Simulated Annealing — post-optimalizace nejlepší varianty
+  // Náhodně prohazuje bedny mezi auty a akceptuje prohození, pokud zlepší skóre.
+  // Rychlé (~1-2 s), funguje pro úlohy všech velikostí.
+  if (results[0] && results[0].valid && results[0].vehicles && results[0].vehicles.length > 1) {
+    try {
+      await _saRefineWinner(results[0]);
+    } catch (e) { console.warn('SA optimization skipped:', e); }
+  }
+
+  // 🗺️ Předem stáhni souřadnice adres pro mapu — na pozadí, nezdržuje UI
+  // Až user klikne na "Mapa", data jsou už cachovaná → mapa se ukáže okamžitě.
+  setTimeout(() => {
+    if (typeof prefetchRouteData === 'function') {
+      prefetchRouteData().catch(err => console.warn('Route prefetch failed:', err));
+    }
+  }, 100);
+
   _allVehResults = results;
   results._cargoVol = _cargoVol;
   results._cargoKg = _cargoKg;
   hideCalcProgress();
   showAllVehiclesModal(results);
 }
+
+// Automatické IP doladění layoutu nejlepší varianty — voláno z computeAllVehicles
+async function _autoIpRefineWinner(winnerResult) {
+  if (!winnerResult || !winnerResult.vehicles) return;
+  if (typeof loadGlpk !== 'function' || typeof ipRefineVehicleLayout !== 'function') return;
+  // Kontrola, zda má smysl spouštět (jsou-li auta s 3-22 bedny)
+  const eligible = winnerResult.vehicles.filter(av => av.units && av.units.length >= 3 && av.units.length <= 22);
+  if (!eligible.length) return;
+
+  try {
+    updateCalcProgress('🎯 IP doladění — načítám solver…');
+    await loadGlpk();
+
+    let improved = 0, tried = 0, totalSavedMm = 0;
+    for (let k = 0; k < winnerResult.vehicles.length; k++) {
+      const av = winnerResult.vehicles[k];
+      if (!av.units || av.units.length < 3 || av.units.length > 22) continue;
+      tried++;
+      updateCalcProgress(`🎯 IP doladění: auto ${tried}/${eligible.length} (${av.units.length} bedny)`);
+      await new Promise(r => setTimeout(r, 10));
+      try {
+        const res = await ipRefineVehicleLayout(av, 8000);   // 8 s timeout per auto
+        if (!res) continue;
+        // Spočítat heuristic L_used pro porovnání
+        const heurLen = av.units.reduce((m, u) => {
+          const t = boxTypeMap.get(u.typeId);
+          if (!t) return m;
+          const li = u.rot ? t.w : t.l;
+          return Math.max(m, (u.x || 0) + li);
+        }, 0);
+        if (res.usedLen < heurLen - 50) {
+          av.units = res.units;
+          improved++;
+          totalSavedMm += (heurLen - res.usedLen);
+        }
+      } catch (e) { /* skip this vehicle */ }
+    }
+    if (improved > 0) {
+      winnerResult._ipImproved = improved;
+      winnerResult._ipSavedMm = totalSavedMm;
+      // Přepočítat metrics, ať se zlepšení projeví ve skóre
+      try { winnerResult.metrics = scoreVariantDetailed(winnerResult.vehicles); } catch (e) {}
+      if (window.logAction) window.logAction('akce', `🎯 IP doladění: zlepšeno ${improved} aut (úspora ${(totalSavedMm/1000).toFixed(2)} m délky)`);
+    }
+  } catch (e) {
+    console.warn('IP refinement nepodařilo:', e);
+  }
+}
+window._autoIpRefineWinner = _autoIpRefineWinner;
+
+// ──────────────────────────────────────────────────────────────────────────
+// SIMULATED ANNEALING POST-OPTIMIZATION
+//
+// Vezme nejlepší heuristic plán a 1500 iterací zkusí prohodit/přesunout
+// bedny mezi auty. Cílem je:
+//  1) Vyprázdnit auta s nejnižším využitím (méně aut = lepší)
+//  2) Zhutnit využití zbylých aut
+//
+// Skóre se měří jako: počet aut × 1000 − průměrný využitý objem
+// Akceptační kritérium: hladina pravděpodobnosti exp(−Δ/T), kde T klesá
+// ──────────────────────────────────────────────────────────────────────────
+async function _saRefineWinner(winnerResult) {
+  if (!winnerResult || !winnerResult.vehicles || winnerResult.vehicles.length < 2) return;
+  updateCalcProgress('🎲 Doladění SA — prohazuji bedny mezi auty…');
+  await new Promise(r => setTimeout(r, 10));
+
+  // Helper: rychlá zkouška, zda se sada beden vejde do auta
+  const fitsInVehicle = (units, veh) => {
+    if (!units || !units.length) return true;
+    let totalKg = 0, totalVol = 0;
+    for (const u of units) {
+      const t = boxTypeMap.get(u.typeId);
+      if (!t) return false;
+      totalKg += t.kg || 0;
+      totalVol += (t.l * t.w * t.h) / 1e9;
+    }
+    if (totalKg > (veh.maxKg || 0) * 1.0) return false;
+    const vehVol = ((veh.L || 0) * (veh.W || 0) * (veh.H || 0)) / 1e9;
+    if (totalVol > vehVol * 0.95) return false;
+    return true;
+  };
+
+  // Skóre plánu: méně aut = lépe, vyšší využití = lépe
+  const planScore = (vehicles) => {
+    let activeCount = 0, totalVol = 0, totalCap = 0;
+    for (const av of vehicles) {
+      if (!av.units || !av.units.length) continue;
+      activeCount++;
+      const vol = av.units.reduce((s, u) => {
+        const t = boxTypeMap.get(u.typeId);
+        return s + (t ? (t.l * t.w * t.h) / 1e9 : 0);
+      }, 0);
+      const cap = ((av.veh.L || 0) * (av.veh.W || 0) * (av.veh.H || 0)) / 1e9;
+      totalVol += vol; totalCap += cap;
+    }
+    const util = totalCap > 0 ? totalVol / totalCap : 0;
+    // skóre: čím méně aut, tím lépe; čím vyšší využití, tím lépe
+    return activeCount * 1000 - util * 100;
+  };
+
+  // Deep-copy vehicles units pouze (rozměry zůstanou stejné — sdílíme typ)
+  const cloneState = (vehs) => vehs.map(av => ({ ...av, units: av.units.map(u => ({ ...u })) }));
+
+  let current = cloneState(winnerResult.vehicles);
+  let currentScore = planScore(current);
+  let best = cloneState(current);
+  let bestScore = currentScore;
+
+  const ITERATIONS = 1500;
+  let T = 10.0;  // počáteční „teplota"
+  const cooling = 0.995;
+
+  let accepted = 0, improved = 0;
+  const t0 = performance.now();
+
+  for (let iter = 0; iter < ITERATIONS; iter++) {
+    if (iter % 250 === 0) {
+      updateCalcProgress(`🎲 Doladění SA — iterace ${iter}/${ITERATIONS}, aktuální skóre ${currentScore.toFixed(1)}`);
+      await new Promise(r => setTimeout(r, 0));
+    }
+    // Vyber 2 různá auta s alespoň 1 bednou
+    const candidates = current.filter(av => av.units && av.units.length > 0);
+    if (candidates.length < 2) break;
+    const aIdx = Math.floor(Math.random() * candidates.length);
+    let bIdx = Math.floor(Math.random() * candidates.length);
+    if (bIdx === aIdx) bIdx = (bIdx + 1) % candidates.length;
+    const av1 = candidates[aIdx], av2 = candidates[bIdx];
+
+    // Náhodně vyber typ operace: 0=přesun 1 bedny, 1=výměna 2 beden
+    const op = Math.random() < 0.7 ? 'move' : 'swap';
+    const trial1 = av1.units.map(u => ({ ...u }));
+    const trial2 = av2.units.map(u => ({ ...u }));
+
+    if (op === 'move') {
+      // přesun bedny z av2 do av1
+      if (trial2.length === 0) continue;
+      const k = Math.floor(Math.random() * trial2.length);
+      const u = trial2.splice(k, 1)[0];
+      trial1.push(u);
+    } else {
+      // výměna: bedna z av1 ↔ bedna z av2
+      if (trial1.length === 0 || trial2.length === 0) continue;
+      const k1 = Math.floor(Math.random() * trial1.length);
+      const k2 = Math.floor(Math.random() * trial2.length);
+      const tmp = trial1[k1]; trial1[k1] = trial2[k2]; trial2[k2] = tmp;
+    }
+
+    // Test, jestli se vejdou (rychlý objemový/váhový test, bez packingu)
+    if (!fitsInVehicle(trial1, av1.veh)) continue;
+    if (!fitsInVehicle(trial2, av2.veh)) continue;
+
+    // Spočítat skóre po prohození
+    const newState = current.map(av =>
+      av === av1 ? { ...av, units: trial1 } :
+      av === av2 ? { ...av, units: trial2 } : av
+    );
+    const newScore = planScore(newState);
+    const delta = newScore - currentScore;
+
+    // Metropolis kritérium
+    if (delta < 0 || Math.random() < Math.exp(-delta / T)) {
+      current = newState;
+      currentScore = newScore;
+      accepted++;
+      if (currentScore < bestScore) {
+        best = cloneState(current);
+        bestScore = currentScore;
+        improved++;
+      }
+    }
+    T *= cooling;
+  }
+
+  const ms = performance.now() - t0;
+
+  // Aplikuj jen pokud SA našel reálné zlepšení (méně aut)
+  const origActive = winnerResult.vehicles.filter(av => av.units && av.units.length).length;
+  const newActive = best.filter(av => av.units && av.units.length).length;
+  if (newActive < origActive || bestScore < planScore(winnerResult.vehicles) - 0.5) {
+    // Sketchy: musíme přepočítat layout v každém autě, protože bedny se prohazovaly
+    // Pro každé auto zavoláme packVariant (B variantu, nejstabilnější) s novým units
+    for (const av of best) {
+      if (!av.units || !av.units.length) continue;
+      const savedFleet = fleet;
+      fleet = [{ ...av.veh, id: 1 }];
+      try {
+        const repack = packVariant(av.units, getVariantSortFn('area'));
+        if (repack && repack[0]) {
+          av.units = repack[0].units;
+          av.layout = repack[0].layout;
+        }
+      } catch (e) {}
+      fleet = savedFleet;
+    }
+    // Odfiltruj prázdná auta
+    winnerResult.vehicles = best.filter(av => av.units && av.units.length > 0);
+    winnerResult._saImproved = true;
+    winnerResult._saTimeMs = ms;
+    winnerResult._saIterations = ITERATIONS;
+    winnerResult._saAccepted = accepted;
+    try { winnerResult.metrics = scoreVariantDetailed(winnerResult.vehicles); } catch (e) {}
+    if (window.logAction) window.logAction('akce', `🎲 SA optimalizace: ${origActive}→${newActive} aut za ${(ms/1000).toFixed(1)}s, ${accepted}/${ITERATIONS} prohození`);
+  }
+}
+window._saRefineWinner = _saRefineWinner;
 
 // Cargo length per vykládka v hotovém layoutu (extent v ose X, max přes všechny vehicles)
 function _stopCargoLengths(vehicles) {
@@ -3343,77 +4144,178 @@ function showVehiclePickerFor(veh) {
 // ══════════════════════════════════════════════════════
 function renderBoxTypes() {
   const grid = document.getElementById('boxTypesGrid');
+  if (!grid) return;
   grid.innerHTML = '';
 
+  // Seskupit boxy podle velikosti půdorysu (l × w) pro lepší orientaci
+  // Příklady kategorií: 800×600, 1200×800, 1600×1200, atd.
+  const groups = {};
   boxTypes.forEach(t => {
-    const card = document.createElement('div');
-    card.className = 'box-def-card';
-    card.style.padding = '10px';
+    const key = `${t.l}×${t.w}`;
+    if (!groups[key]) groups[key] = { l: t.l, w: t.w, items: [] };
+    groups[key].items.push(t);
+  });
+  // Seřadit skupiny podle plochy půdorysu vzestupně (malé → velké)
+  const groupsSorted = Object.entries(groups).sort((a, b) => (a[1].l * a[1].w) - (b[1].l * b[1].w));
 
-    // Color swatch + editable name
-    const nameRow = document.createElement('div');
-    nameRow.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:8px;';
+  // Kontejner tabulky
+  const tableWrap = document.createElement('div');
+  tableWrap.style.cssText = 'background:var(--bg);border:1px solid var(--border);border-radius:6px;overflow:hidden;';
 
-    const colorInp = document.createElement('input');
-    colorInp.type = 'color';
-    colorInp.value = t.color;
-    colorInp.style.cssText = 'width:22px;height:22px;border:none;border-radius:3px;cursor:pointer;padding:1px;background:none;flex-shrink:0;';
-    colorInp.addEventListener('input', () => { t.color = colorInp.value; renderOrders(); });
-    nameRow.appendChild(colorInp);
+  const table = document.createElement('table');
+  table.style.cssText = 'width:100%;border-collapse:collapse;font-size:11px;';
 
-    const nameInp = document.createElement('input');
-    nameInp.value = t.name;
-    nameInp.style.cssText = 'background:none;border:none;border-bottom:1px solid var(--border);color:var(--text);font-size:13px;font-weight:600;font-family:IBM Plex Sans,sans-serif;width:100%;outline:none;padding-bottom:1px;';
-    nameInp.addEventListener('input', () => { t.name = nameInp.value; });
-    nameRow.appendChild(nameInp);
+  // Hlavička — vnější + vnitřní rozměry vedle sebe
+  const thead = document.createElement('thead');
+  thead.innerHTML = `<tr style="background:var(--panel2);">
+    <th rowspan="2" style="padding:6px 4px;text-align:center;font-size:9px;color:var(--muted);letter-spacing:1px;font-family:'IBM Plex Mono',monospace;border-bottom:1px solid var(--border);border-right:1px solid var(--border);font-weight:600;width:24px;vertical-align:middle;">▓</th>
+    <th rowspan="2" style="padding:6px 8px;text-align:left;font-size:9px;color:var(--muted);letter-spacing:1px;font-family:'IBM Plex Mono',monospace;border-bottom:1px solid var(--border);border-right:1px solid var(--border);font-weight:600;min-width:180px;vertical-align:middle;">NÁZEV</th>
+    <th colspan="3" style="padding:5px 4px;text-align:center;font-size:9px;color:var(--text);letter-spacing:1px;font-family:'IBM Plex Mono',monospace;border-bottom:1px solid var(--border);border-right:1px solid var(--border);font-weight:700;background:rgba(255,255,255,0.03);">VNĚJŠÍ ROZMĚR (mm)</th>
+    <th colspan="3" style="padding:5px 4px;text-align:center;font-size:9px;color:var(--blue);letter-spacing:1px;font-family:'IBM Plex Mono',monospace;border-bottom:1px solid var(--border);border-right:1px solid var(--border);font-weight:700;background:rgba(77,159,255,0.06);">VNITŘNÍ ROZMĚR (mm)</th>
+    <th rowspan="2" style="padding:6px 4px;text-align:center;font-size:9px;color:var(--muted);letter-spacing:1px;font-family:'IBM Plex Mono',monospace;border-bottom:1px solid var(--border);border-right:1px solid var(--border);font-weight:600;width:60px;vertical-align:middle;">KG</th>
+    <th rowspan="2" style="padding:6px 4px;text-align:center;font-size:9px;color:var(--muted);letter-spacing:1px;font-family:'IBM Plex Mono',monospace;border-bottom:1px solid var(--border);border-right:1px solid var(--border);font-weight:600;width:60px;vertical-align:middle;">VÍKO</th>
+    <th rowspan="2" style="padding:6px 4px;text-align:center;border-bottom:1px solid var(--border);width:30px;vertical-align:middle;"></th>
+  </tr>
+  <tr style="background:var(--panel2);">
+    <th style="padding:4px 2px;text-align:center;font-size:9px;color:var(--muted);font-family:'IBM Plex Mono',monospace;border-bottom:1px solid var(--border);font-weight:600;width:62px;">délka</th>
+    <th style="padding:4px 2px;text-align:center;font-size:9px;color:var(--muted);font-family:'IBM Plex Mono',monospace;border-bottom:1px solid var(--border);font-weight:600;width:62px;">šířka</th>
+    <th style="padding:4px 2px;text-align:center;font-size:9px;color:var(--muted);font-family:'IBM Plex Mono',monospace;border-bottom:1px solid var(--border);border-right:1px solid var(--border);font-weight:600;width:62px;">výška</th>
+    <th style="padding:4px 2px;text-align:center;font-size:9px;color:var(--blue);font-family:'IBM Plex Mono',monospace;border-bottom:1px solid var(--border);font-weight:600;width:62px;">délka</th>
+    <th style="padding:4px 2px;text-align:center;font-size:9px;color:var(--blue);font-family:'IBM Plex Mono',monospace;border-bottom:1px solid var(--border);font-weight:600;width:62px;">šířka</th>
+    <th style="padding:4px 2px;text-align:center;font-size:9px;color:var(--blue);font-family:'IBM Plex Mono',monospace;border-bottom:1px solid var(--border);border-right:1px solid var(--border);font-weight:600;width:62px;">výška</th>
+  </tr>`;
+  table.appendChild(thead);
 
-    if (t.viko) {
-      const lidBadge = document.createElement('span');
-      lidBadge.textContent = '📦 víko +' + t.viko;
-      lidBadge.title = 'Bedna s víkem — víko se počítá do výšky stohu';
-      lidBadge.style.cssText = 'font-size:9px;color:var(--accent);border:1px solid var(--accent);border-radius:4px;padding:1px 5px;white-space:nowrap;flex-shrink:0;';
-      nameRow.appendChild(lidBadge);
-    }
+  const tbody = document.createElement('tbody');
+  table.appendChild(tbody);
 
-    const delBtn = document.createElement('button');
-    delBtn.className = 'del-type-btn';
-    delBtn.textContent = '✕';
-    delBtn.addEventListener('click', () => { boxTypes = boxTypes.filter(x => x.id !== t.id); rebuildBoxTypeMap(); renderBoxTypes(); });
-    nameRow.appendChild(delBtn);
-    card.appendChild(nameRow);
+  // Helper: vytvoří input pro číselné pole
+  const makeNumInput = (t, key, isBlue) => {
+    const inp = document.createElement('input');
+    inp.type = 'number';
+    inp.value = t[key] || 0;
+    inp.style.cssText = `background:transparent;border:none;border-bottom:1px solid transparent;color:${isBlue?'var(--blue)':'var(--text)'};border-radius:0;padding:3px 4px;font-family:'IBM Plex Mono',monospace;font-size:11px;outline:none;width:100%;text-align:center;`;
+    inp.addEventListener('focus', () => inp.style.borderBottomColor = 'var(--accent)');
+    inp.addEventListener('blur',  () => inp.style.borderBottomColor = 'transparent');
+    inp.addEventListener('input', () => { t[key] = +inp.value || 0; });
+    inp.addEventListener('change', () => { try { saveWorkspace(); } catch (e) {} renderBoxTypes(); });
+    return inp;
+  };
 
-    // Dimension inputs grid
-    const dims = document.createElement('div');
-    dims.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:5px;';
-    [
-      { label: 'Délka (mm)',          key: 'l'  },
-      { label: 'Šířka (mm)',          key: 'w'  },
-      { label: 'Výška vnější (mm)',   key: 'h'  },
-      { label: 'Výška vnitřní (mm)',  key: 'hi' },
-      { label: 'Hmotnost (kg)',       key: 'kg' },
-    ].forEach(({ label, key }) => {
-      if (!t[key] && key === 'hi') t[key] = Math.round(t.h * 0.85); // default 85% vnější
-      const wrap = document.createElement('div');
-      wrap.style.cssText = 'display:flex;flex-direction:column;gap:2px;';
-      const lbl = document.createElement('label');
-      lbl.textContent = label;
-      lbl.style.cssText = `font-size:9px;color:${key==='hi'?'var(--blue)':'var(--muted)'};`;
-      const inp = document.createElement('input');
-      inp.type = 'number'; inp.value = t[key] || 0;
-      inp.style.cssText = `background:var(--bg);border:1px solid ${key==='hi'?'var(--blue)':'var(--border)'};color:var(--text);border-radius:4px;padding:4px 6px;font-family:IBM Plex Mono,monospace;font-size:11px;outline:none;width:100%;`;
-      inp.addEventListener('focus', () => inp.style.borderColor = 'var(--accent)');
-      inp.addEventListener('blur',  () => inp.style.borderColor = key==='hi'?'var(--blue)':'var(--border)');
-      inp.addEventListener('input', () => { t[key] = +inp.value || 0; });
-      wrap.appendChild(lbl); wrap.appendChild(inp);
-      dims.appendChild(wrap);
+  // Renderovat skupiny
+  groupsSorted.forEach(([key, grp]) => {
+    // Hlavička skupiny — barevný proužek s velikostí
+    // colspan = 11 (barva, název, l, w, h, li, wi, hi, kg, víko, ✕)
+    const grpRow = document.createElement('tr');
+    grpRow.innerHTML = `<td colspan="11" style="padding:5px 8px;background:rgba(77,159,255,0.08);font-size:9px;color:var(--blue);font-family:'IBM Plex Mono',monospace;letter-spacing:1px;font-weight:600;border-bottom:1px solid var(--border);">${grp.l} × ${grp.w} mm · ${grp.items.length} typů</td>`;
+    tbody.appendChild(grpRow);
+
+    // Boxy ve skupině — seřadit dle výšky (h) sestupně, pak dle názvu
+    grp.items.sort((a, b) => (b.h || 0) - (a.h || 0) || a.name.localeCompare(b.name));
+
+    grp.items.forEach(t => {
+      const tr = document.createElement('tr');
+      tr.style.cssText = 'border-bottom:1px solid var(--border);transition:background 0.1s;';
+      tr.addEventListener('mouseenter', () => tr.style.background = 'rgba(255,255,255,0.02)');
+      tr.addEventListener('mouseleave', () => tr.style.background = '');
+
+      // 1) Barva
+      const cTd = document.createElement('td');
+      cTd.style.cssText = 'padding:4px 4px;text-align:center;border-right:1px solid var(--border);';
+      const colorInp = document.createElement('input');
+      colorInp.type = 'color';
+      colorInp.value = t.color;
+      colorInp.style.cssText = 'width:18px;height:18px;border:none;border-radius:2px;cursor:pointer;padding:0;background:none;';
+      colorInp.addEventListener('input', () => { t.color = colorInp.value; renderOrders(); });
+      colorInp.addEventListener('change', () => { try { saveWorkspace(); } catch (e) {} });
+      cTd.appendChild(colorInp);
+      tr.appendChild(cTd);
+
+      // 2) Název — editovatelný
+      const nTd = document.createElement('td');
+      nTd.style.cssText = 'padding:4px 8px;border-right:1px solid var(--border);';
+      const nameInp = document.createElement('input');
+      nameInp.value = t.name;
+      nameInp.style.cssText = 'background:transparent;border:none;border-bottom:1px solid transparent;color:var(--text);font-size:12px;font-weight:600;font-family:IBM Plex Sans,sans-serif;width:100%;outline:none;padding:3px 4px;';
+      nameInp.addEventListener('focus', () => nameInp.style.borderBottomColor = 'var(--accent)');
+      nameInp.addEventListener('blur',  () => nameInp.style.borderBottomColor = 'transparent');
+      nameInp.addEventListener('input', () => { t.name = nameInp.value; });
+      nameInp.addEventListener('change', () => { try { saveWorkspace(); } catch (e) {} renderOrders(); });
+      nTd.appendChild(nameInp);
+      tr.appendChild(nTd);
+
+      // 3-5) Vnější rozměry: délka, šířka, výška
+      // 6-8) Vnitřní rozměry: délka (li), šířka (wi), výška (hi)
+      // Defaulty pro vnitřní rozměry: ~85 % vnějšího (běžně používaný odhad pro ocelové bedny)
+      if (!t.li) t.li = Math.round(t.l * 0.92);
+      if (!t.wi) t.wi = Math.round(t.w * 0.92);
+      if (!t.hi) t.hi = Math.round(t.h * 0.85);
+      const dimKeys = [
+        { key: 'l',  isInner: false, isLast: false },
+        { key: 'w',  isInner: false, isLast: false },
+        { key: 'h',  isInner: false, isLast: true  },
+        { key: 'li', isInner: true,  isLast: false },
+        { key: 'wi', isInner: true,  isLast: false },
+        { key: 'hi', isInner: true,  isLast: true  },
+      ];
+      dimKeys.forEach(({ key, isInner, isLast }) => {
+        const td = document.createElement('td');
+        td.style.cssText = `padding:4px 2px;text-align:center;${isLast ? 'border-right:1px solid var(--border);' : ''}${isInner ? 'background:rgba(77,159,255,0.03);' : ''}`;
+        td.appendChild(makeNumInput(t, key, isInner));
+        tr.appendChild(td);
+      });
+
+      // 9) Hmotnost
+      const kgTd = document.createElement('td');
+      kgTd.style.cssText = 'padding:4px 2px;text-align:center;border-right:1px solid var(--border);';
+      kgTd.appendChild(makeNumInput(t, 'kg'));
+      tr.appendChild(kgTd);
+
+      // 10) Víko (toggle on/off + hodnota)
+      const lidTd = document.createElement('td');
+      lidTd.style.cssText = 'padding:4px 2px;text-align:center;border-right:1px solid var(--border);';
+      if (t.viko) {
+        lidTd.appendChild(makeNumInput(t, 'viko'));
+      } else {
+        const addLid = document.createElement('button');
+        addLid.textContent = '+';
+        addLid.title = 'Přidat víko (počítá se do výšky stohu)';
+        addLid.style.cssText = 'background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:3px;cursor:pointer;font-size:11px;padding:1px 6px;';
+        addLid.addEventListener('click', () => { t.viko = Math.round(t.h * 0.1); renderBoxTypes(); try { saveWorkspace(); } catch (e) {} });
+        lidTd.appendChild(addLid);
+      }
+      tr.appendChild(lidTd);
+
+      // 9) Smazat
+      const dTd = document.createElement('td');
+      dTd.style.cssText = 'padding:4px 2px;text-align:center;';
+      const delBtn = document.createElement('button');
+      delBtn.textContent = '✕';
+      delBtn.title = 'Smazat tento typ';
+      delBtn.style.cssText = 'background:transparent;border:1px solid var(--red,#e24b4a);color:var(--red,#e24b4a);border-radius:3px;cursor:pointer;font-size:9px;padding:2px 5px;opacity:0.6;';
+      delBtn.addEventListener('mouseenter', () => delBtn.style.opacity = '1');
+      delBtn.addEventListener('mouseleave', () => delBtn.style.opacity = '0.6');
+      delBtn.addEventListener('click', () => {
+        if (!confirm(`Smazat typ "${t.name}"?`)) return;
+        boxTypes = boxTypes.filter(x => x.id !== t.id);
+        rebuildBoxTypeMap();
+        try { saveWorkspace(); } catch (e) {}
+        renderBoxTypes();
+      });
+      dTd.appendChild(delBtn);
+      tr.appendChild(dTd);
+
+      tbody.appendChild(tr);
     });
-    card.appendChild(dims);
-    grid.appendChild(card);
   });
 
-  // Add button
+  tableWrap.appendChild(table);
+  grid.appendChild(tableWrap);
+
+  // Tlačítko + Přidat typ boxu (pod tabulkou)
   const addBtn = document.createElement('button');
   addBtn.className = 'add-type-btn';
+  addBtn.style.marginTop = '8px';
   addBtn.textContent = '+ Přidat typ boxu';
   addBtn.addEventListener('click', () => {
     document.getElementById('modalOverlay').classList.add('open');
@@ -3452,13 +4354,33 @@ function renderOrders() {
     noInp.placeholder = 'Č. obj.';
     noInp.title = 'Číslo objednávky';
     noInp.value = order.orderNo || '';
-    noInp.style.cssText = 'max-width:120px;flex:0 0 auto;font-family:IBM Plex Mono,monospace;';
+    noInp.style.cssText = 'max-width:140px;flex:0 0 auto;font-family:IBM Plex Mono,monospace;' +
+      'border:2px solid var(--accent,#f0c040);background:rgba(240,192,64,0.10);color:var(--accent,#f0c040);' +
+      'font-weight:700;font-size:13px;padding:5px 9px;border-radius:5px;letter-spacing:0.3px;' +
+      'box-shadow:0 0 0 3px rgba(240,192,64,0.08);';
+    noInp.addEventListener('focus', () => { noInp.style.boxShadow = '0 0 0 4px rgba(240,192,64,0.25)'; });
+    noInp.addEventListener('blur',  () => { noInp.style.boxShadow = '0 0 0 3px rgba(240,192,64,0.08)'; });
     noInp.addEventListener('input', () => { order.orderNo = noInp.value; });
     hdr.appendChild(noInp);
 
+    // Kolonka „Název firmy" — odběratel/zákazník, propisuje se do přepravenky
+    const custInp = document.createElement('input');
+    custInp.className = 'order-name-input';
+    custInp.placeholder = 'Název firmy (odběratel)';
+    custInp.title = 'Název firmy odběratele — zobrazí se v přepravence i v e-mailu';
+    custInp.value = order.customer || '';
+    custInp.style.cssText = 'max-width:240px;flex:0 0 auto;font-family:IBM Plex Mono,monospace;' +
+      'border:2px solid var(--blue,#4d9fff);background:rgba(77,159,255,0.10);color:var(--blue,#4d9fff);' +
+      'font-weight:700;font-size:13px;padding:5px 9px;border-radius:5px;letter-spacing:0.3px;' +
+      'box-shadow:0 0 0 3px rgba(77,159,255,0.08);';
+    custInp.addEventListener('focus', () => { custInp.style.boxShadow = '0 0 0 4px rgba(77,159,255,0.25)'; });
+    custInp.addEventListener('blur',  () => { custInp.style.boxShadow = '0 0 0 3px rgba(77,159,255,0.08)'; });
+    custInp.addEventListener('input', () => { order.customer = custInp.value; });
+    hdr.appendChild(custInp);
+
     const nameInp = document.createElement('input');
     nameInp.className = 'order-name-input';
-    nameInp.placeholder = 'Název objednávky...';
+    nameInp.placeholder = 'Název objednávky / projekt...';
     nameInp.value = order.name;
     nameInp.addEventListener('input', () => { order.name = nameInp.value; });
     hdr.appendChild(nameInp);
@@ -3491,6 +4413,35 @@ function renderOrders() {
     xlsInp.addEventListener('change', e => { if (e.target.files[0]) importExcelToOrder(e.target.files[0], order); e.target.value=''; });
     xlsLabel.appendChild(xlsInp);
     hdr.appendChild(xlsLabel);
+
+    // ⬇ Stáhnout vzorový Excel se správnými sloupci
+    const tplBtn = document.createElement('button');
+    tplBtn.type = 'button';
+    tplBtn.textContent = '⬇ Vzor';
+    tplBtn.title = 'Stáhnout vzor (.xlsx) s ukázkovými řádky — vyplň ho a importuj přes „📥 Excel"';
+    tplBtn.style.cssText = 'font-family:IBM Plex Mono,monospace;font-size:9px;padding:3px 8px;border-radius:3px;cursor:pointer;border:1px solid var(--blue,#4d9fff);color:var(--blue,#4d9fff);background:rgba(77,159,255,0.08);white-space:nowrap;';
+    tplBtn.addEventListener('click', () => { if (typeof downloadExcelTemplate === 'function') downloadExcelTemplate(); });
+    hdr.appendChild(tplBtn);
+
+    // 💾 Uložit objednávku do JSON souboru (jen tuto, ne celý plán)
+    const saveOrderBtn = document.createElement('button');
+    saveOrderBtn.type = 'button';
+    saveOrderBtn.textContent = '💾 Uložit obj.';
+    saveOrderBtn.title = 'Stáhnout TUTO objednávku do souboru .objednavka.json — pro pozdější načtení nebo sdílení s kolegou';
+    saveOrderBtn.style.cssText = 'font-family:IBM Plex Mono,monospace;font-size:9px;padding:3px 8px;border-radius:3px;cursor:pointer;border:1px solid var(--green,#3dd68c);color:var(--green,#3dd68c);background:rgba(61,214,140,0.08);white-space:nowrap;';
+    saveOrderBtn.addEventListener('click', () => saveSingleOrderToFile(order));
+    hdr.appendChild(saveOrderBtn);
+
+    // 📂 Načíst objednávku ze souboru — přidá k aktuálním objednávkám
+    const loadOrderLabel = document.createElement('label');
+    loadOrderLabel.style.cssText = 'font-family:IBM Plex Mono,monospace;font-size:9px;padding:3px 8px;border-radius:3px;cursor:pointer;border:1px solid var(--purple,#b07fff);color:var(--purple,#b07fff);background:rgba(176,127,255,0.08);white-space:nowrap;';
+    loadOrderLabel.textContent = '📂 Načíst obj.';
+    loadOrderLabel.title = 'Načíst objednávku ze souboru .objednavka.json — bude přidána k existujícím (NEpřepíše)';
+    const loadOrderInp = document.createElement('input');
+    loadOrderInp.type = 'file'; loadOrderInp.accept = '.json,.objednavka.json'; loadOrderInp.style.display = 'none';
+    loadOrderInp.addEventListener('change', e => { if (e.target.files[0]) loadSingleOrderFromFile(e.target.files[0]); e.target.value=''; });
+    loadOrderLabel.appendChild(loadOrderInp);
+    hdr.appendChild(loadOrderLabel);
 
     if (orders.length > 1) {
       const delBtn = document.createElement('button');
@@ -3697,6 +4648,37 @@ function renderOrders() {
           unit.style.cssText = 'color:var(--muted);font-size:10px;';
           unit.textContent = 'ks';
 
+          // RAL barva — malé tlačítko se čtverečkem aktuální barvy (klik = paleta)
+          const ralBtn = document.createElement('button');
+          ralBtn.type = 'button';
+          const currentRal = (addr.rals && addr.rals[bt.id]) || null;
+          ralBtn.title = currentRal
+            ? `RAL: ${currentRal.ral} — klikni pro změnu`
+            : 'Vybrat RAL barvu (paleta)';
+          ralBtn.style.cssText = `width:22px;height:22px;border-radius:4px;cursor:pointer;
+            border:1px solid var(--border);background:${currentRal ? currentRal.hex : 'transparent'};
+            margin-left:2px;font-size:9px;color:${currentRal ? '#fff' : 'var(--muted)'};
+            display:flex;align-items:center;justify-content:center;text-shadow:0 0 2px rgba(0,0,0,0.8);`;
+          ralBtn.innerHTML = currentRal ? '✓' : '🎨';
+          ralBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openRalPicker(ralBtn, addr, bt.id, () => rebuildChips());
+          });
+
+          // Výrobní čísla / sériová čísla pro tento typ boxu (volitelné)
+          const snInp = document.createElement('input');
+          snInp.type = 'text';
+          snInp.placeholder = 'výr. č.';
+          snInp.title = 'Výrobní čísla / SN — volitelně (např. SN001-SN025 nebo 12345, 12346, 12347)';
+          snInp.value = (addr.serials && addr.serials[bt.id]) || '';
+          snInp.style.cssText = 'width:90px;background:var(--bg);border:1px solid var(--border);' +
+            'border-radius:4px;color:var(--text);font-family:IBM Plex Mono,monospace;' +
+            'font-size:10px;padding:2px 5px;margin-left:4px;';
+          snInp.addEventListener('input', () => {
+            if (!addr.serials) addr.serials = {};
+            addr.serials[bt.id] = snInp.value;
+          });
+
           const del = document.createElement('button');
           del.innerHTML = '×';
           del.title = 'Odebrat';
@@ -3714,6 +4696,8 @@ function renderOrders() {
           chip.appendChild(nameLbl);
           chip.appendChild(inp);
           chip.appendChild(unit);
+          chip.appendChild(ralBtn);
+          chip.appendChild(snInp);
           chip.appendChild(del);
           chipsWrap.appendChild(chip);
         });
@@ -3730,62 +4714,134 @@ function renderOrders() {
 
         addBtn.addEventListener('click', (e) => {
           e.stopPropagation();
+          // pojistka — kdyby tu zůstal jakýkoliv "neviditelný" overlay z minula
+          document.getElementById('profileEditModal')?.remove();
           document.querySelectorAll('.box-add-dropdown').forEach(d => d.remove());
 
           const dd = document.createElement('div');
           dd.className = 'box-add-dropdown';
-          // Připojíme na body s fixed pozicí — nevadí overflow rodičů
+          // Připojíme na body s fixed pozicí — nevadí overflow rodičů.
+          // Detekuj, jestli má dropdown místo dole nebo se má otevřít nahoru.
           const rect = addBtn.getBoundingClientRect();
-          dd.style.cssText = `position:fixed;top:${rect.bottom + 4}px;left:${rect.left}px;z-index:9999;
+          const MAX_DD_H = 320, MARGIN = 8;
+          const spaceBelow = window.innerHeight - rect.bottom;
+          const spaceAbove = rect.top;
+          const openUp = spaceBelow < (MAX_DD_H + MARGIN) && spaceAbove > spaceBelow;
+          const topPx = openUp
+            ? Math.max(MARGIN, rect.top - MAX_DD_H - 4)
+            : rect.bottom + 4;
+          const ddH = openUp ? Math.min(MAX_DD_H, spaceAbove - MARGIN) : Math.min(MAX_DD_H, spaceBelow - MARGIN);
+          dd.style.cssText = `position:fixed;top:${topPx}px;left:${rect.left}px;z-index:9999;
             background:var(--panel);border:1px solid var(--border);border-radius:8px;
-            box-shadow:0 8px 24px rgba(0,0,0,0.5);min-width:260px;max-height:320px;
-            overflow-y:auto;padding:4px 0;`;
+            box-shadow:0 8px 24px rgba(0,0,0,0.5);min-width:300px;max-height:${ddH}px;
+            display:flex;flex-direction:column;`;
 
-          // Skupiny boxů
-          const groups = {};
-          boxTypes.forEach(bt => {
-            const zero = (addr.boxes[bt.id] || 0) === 0;
-            if (!zero) return; // už přidán
-            const grp = bt.name.replace(/[+\s]*(LacNam|ZinNam|Lac|Zin|Öld|Öla|Kla).*$/,'').trim();
-            const family = bt.name.match(/CPR \d+\.\d+|CPK \d+\.\d+|CP \d+\.\d+|Box \w+/)?.[0] || 'Ostatní';
-            if (!groups[family]) groups[family] = [];
-            groups[family].push(bt);
-          });
+          // Vyhledávací pole — našeptávač
+          const searchWrap = document.createElement('div');
+          searchWrap.style.cssText = 'padding:6px 8px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--panel);z-index:2;';
+          const searchInp = document.createElement('input');
+          searchInp.placeholder = '🔍 Hledat (název, rozměry)...';
+          searchInp.style.cssText = 'width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 8px;font-size:11px;outline:none;font-family:IBM Plex Sans,sans-serif;';
+          searchInp.addEventListener('focus', () => searchInp.style.borderColor = 'var(--accent)');
+          searchInp.addEventListener('blur',  () => searchInp.style.borderColor = 'var(--border)');
+          searchWrap.appendChild(searchInp);
+          dd.appendChild(searchWrap);
 
-          if (Object.keys(groups).length === 0) {
-            dd.innerHTML = '<div style="padding:8px 12px;font-size:10px;color:var(--muted)">Všechny typy již přidány</div>';
-          }
+          // Scrollovatelný obsah
+          const ddBody = document.createElement('div');
+          ddBody.style.cssText = 'overflow-y:auto;flex:1;padding:4px 0;';
+          dd.appendChild(ddBody);
 
-          Object.entries(groups).forEach(([family, bts]) => {
-            const grpHdr = document.createElement('div');
-            grpHdr.style.cssText = 'padding:4px 10px 2px;font-size:9px;color:var(--muted);letter-spacing:1px;font-family:"IBM Plex Mono",monospace;border-top:1px solid var(--border);margin-top:2px;';
-            grpHdr.textContent = family.toUpperCase();
-            dd.appendChild(grpHdr);
+          // Seskupit dostupné boxy podle velikosti půdorysu (l × w)
+          const available = boxTypes.filter(bt => (addr.boxes[bt.id] || 0) === 0);
 
-            bts.forEach(bt => {
-              const item = document.createElement('div');
-              item.style.cssText = `display:flex;align-items:center;gap:8px;padding:5px 10px;
-                cursor:pointer;font-size:11px;transition:background 0.1s;`;
-              item.innerHTML = `<span style="width:8px;height:8px;border-radius:2px;background:${bt.color};flex-shrink:0;display:inline-block;"></span>
-                <span style="flex:1;color:var(--text);">${bt.name}</span>
-                <span style="font-size:9px;color:var(--muted);">${bt.l}×${bt.w}×${bt.h}mm</span>`;
-              item.addEventListener('mouseenter', () => item.style.background = 'rgba(255,255,255,0.06)');
-              item.addEventListener('mouseleave', () => item.style.background = '');
-              item.addEventListener('click', () => {
-                addr.boxes[bt.id] = 1;
-                stops = []; assignedVehicles = [];
-                dd.remove();
-                rebuildChips();
-                const btn = document.getElementById('calcBtn');
-                if (btn) { btn.textContent = '⚡ Přepočítat ložné plány ⚠'; btn.style.background = 'var(--orange)'; }
-              });
-              dd.appendChild(item);
+          // Render funkce s filtrem (volá se při psaní)
+          const renderItems = (filter) => {
+            ddBody.innerHTML = '';
+            const f = (filter || '').toLowerCase().trim();
+            const filtered = available.filter(bt => {
+              if (!f) return true;
+              const txt = `${bt.name} ${bt.l}x${bt.w}x${bt.h} ${bt.l}×${bt.w}×${bt.h}`.toLowerCase();
+              return txt.includes(f);
             });
+            if (filtered.length === 0) {
+              ddBody.innerHTML = '<div style="padding:12px;font-size:11px;color:var(--muted);text-align:center;">' +
+                (available.length === 0 ? 'Všechny typy již přidány' : 'Nic nenalezeno') + '</div>';
+              return;
+            }
+            // Seskupit podle (l × w)
+            const groups = {};
+            filtered.forEach(bt => {
+              const key = `${bt.l}×${bt.w}`;
+              if (!groups[key]) groups[key] = { l: bt.l, w: bt.w, items: [] };
+              groups[key].items.push(bt);
+            });
+            // Seřadit skupiny dle plochy půdorysu vzestupně (malé napřed → velké)
+            const groupsSorted = Object.entries(groups).sort((a, b) => (a[1].l*a[1].w) - (b[1].l*b[1].w));
+
+            groupsSorted.forEach(([key, grp]) => {
+              const grpHdr = document.createElement('div');
+              grpHdr.style.cssText = 'padding:5px 10px 3px;font-size:9px;color:var(--blue);letter-spacing:1px;font-family:"IBM Plex Mono",monospace;background:rgba(77,159,255,0.06);border-bottom:1px solid var(--border);font-weight:600;';
+              grpHdr.textContent = `${grp.l}×${grp.w} mm  (${grp.items.length})`;
+              ddBody.appendChild(grpHdr);
+
+              // Seřadit položky uvnitř skupiny dle výšky desc, pak název
+              grp.items.sort((a, b) => (b.h || 0) - (a.h || 0) || a.name.localeCompare(b.name));
+
+              grp.items.forEach(bt => {
+                const item = document.createElement('div');
+                item.style.cssText = `display:flex;align-items:center;gap:8px;padding:5px 10px;
+                  cursor:pointer;font-size:11px;transition:background 0.1s;`;
+                item.innerHTML = `<span style="width:10px;height:10px;border-radius:2px;background:${bt.color};flex-shrink:0;display:inline-block;"></span>
+                  <span style="flex:1;color:var(--text);">${bt.name}</span>
+                  <span style="font-size:9px;color:var(--muted);font-family:'IBM Plex Mono',monospace;">v ${bt.h}mm · ${bt.kg||'?'}kg</span>`;
+                item.addEventListener('mouseenter', () => item.style.background = 'rgba(255,255,255,0.06)');
+                item.addEventListener('mouseleave', () => item.style.background = '');
+                item.addEventListener('click', () => {
+                  addr.boxes[bt.id] = 1;
+                  stops = []; assignedVehicles = [];
+                  dd.remove();
+                  rebuildChips();
+                  const btn = document.getElementById('calcBtn');
+                  if (btn) { btn.textContent = '⚡ Přepočítat ložné plány ⚠'; btn.style.background = 'var(--orange)'; }
+                });
+                ddBody.appendChild(item);
+              });
+            });
+          };
+
+          // První render bez filtru
+          renderItems('');
+          // Filtrování při psaní (debounce 100ms)
+          let _searchTimer = null;
+          searchInp.addEventListener('input', () => {
+            clearTimeout(_searchTimer);
+            _searchTimer = setTimeout(() => renderItems(searchInp.value), 100);
           });
+          // Enter → vybrat první výsledek
+          searchInp.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Enter') {
+              const firstItem = ddBody.querySelector('div[style*="cursor:pointer"]');
+              if (firstItem) firstItem.click();
+              ev.preventDefault();
+            } else if (ev.key === 'Escape') {
+              dd.remove();
+            }
+          });
+          setTimeout(() => searchInp.focus(), 50);
 
           addWrap.appendChild(dd);
           document.body.appendChild(dd);
-          setTimeout(() => document.addEventListener('click', () => dd.remove(), { once: true }), 10);
+          // Klik mimo dropdown ho zavře, ale uvnitř (search input, položky) ne
+          setTimeout(() => {
+            const closeHandler = (ev) => {
+              if (!dd.contains(ev.target) && ev.target !== addBtn) {
+                dd.remove();
+                document.removeEventListener('click', closeHandler);
+              }
+            };
+            document.addEventListener('click', closeHandler);
+          }, 10);
         });
 
         addWrap.appendChild(addBtn);
@@ -3804,7 +4860,7 @@ function renderOrders() {
     addAddrBtn.className = 'add-addr-btn';
     addAddrBtn.textContent = '+ Přidat adresu';
     addAddrBtn.addEventListener('click', () => {
-      order.addresses.push({ id: nextId++, address: '', boxes: {} });
+      order.addresses.push({ id: nextId++, address: '', boxes: {}, serials: {}, rals: {} });
       renderOrders();
     });
     body.appendChild(addAddrBtn);
@@ -5080,8 +6136,34 @@ function drawMiniPlan(variant) {
     const rw = bl * scaleX - 0.5, rh = bw2 * scaleY - 0.5;
     if (rw < 0.5 || rh < 0.5) return;
 
-    // Fill with stop color
-    ctx.fillStyle = (b.color || stopColor(b.stopIdx || 0)) + 'cc';
+    // Fill — buď podle pořadí vykládky, nebo podle RAL barvy
+    let fillColor;
+    if (window._planColorMode === 'ral') {
+      // 1) Zkus cachovanou rals z stops (rychlejší cesta)
+      let ral = null;
+      const st = (typeof stops !== 'undefined' && stops[b.stopIdx]) || null;
+      if (st && st.rals && st.rals[b.typeId]) ral = st.rals[b.typeId];
+      // 2) Fallback: najdi RAL přímo v orders přes stop.id (pro případ
+      //    že user změnil RAL až po výpočtu — stops už není sync)
+      if (!ral && st && typeof orders !== 'undefined') {
+        outer: for (const o of orders) {
+          if (!o.addresses) continue;
+          for (const a of o.addresses) {
+            if (a.id === st.id && a.rals && a.rals[b.typeId]) {
+              ral = a.rals[b.typeId];
+              // synchronizuj zpět do stop pro příští render
+              if (!st.rals) st.rals = {};
+              st.rals[b.typeId] = ral;
+              break outer;
+            }
+          }
+        }
+      }
+      fillColor = ral ? ral.hex : '#5a5a5a';   // beden bez RAL → neutrální šedá
+    } else {
+      fillColor = b.color || stopColor(b.stopIdx || 0);
+    }
+    ctx.fillStyle = fillColor + 'cc';
     ctx.fillRect(rx, ry, rw, rh);
 
     // Stacking indicator - darker for stacked boxes
@@ -7344,6 +8426,27 @@ function renderResults() {
         dispose3D(); renderResults();
       });
 
+      // Drag-and-drop target: bedna přetažena z parkovací zóny → vloží se do tohoto auta
+      card.addEventListener('dragover', (ev) => {
+        if (ev.dataTransfer && ev.dataTransfer.types.includes('parkedidx')) {
+          ev.preventDefault();
+          ev.dataTransfer.dropEffect = 'move';
+          card.style.outline = '2px solid var(--green,#3dd68c)';
+          card.style.outlineOffset = '-2px';
+        }
+      });
+      card.addEventListener('dragleave', () => {
+        card.style.outline = ''; card.style.outlineOffset = '';
+      });
+      card.addEventListener('drop', (ev) => {
+        ev.preventDefault();
+        card.style.outline = ''; card.style.outlineOffset = '';
+        const parkedIdx = parseInt(ev.dataTransfer.getData('parkedIdx'), 10);
+        if (!isNaN(parkedIdx)) {
+          unparkBoxToVehicle(parkedIdx, idx);
+        }
+      });
+
       vList.appendChild(card);
     }
   });
@@ -7449,6 +8552,25 @@ function renderPlanView() {
   if (!pv) return;
   const empty = document.getElementById('emptyState');
 
+  // Resyncovat rals z orders do stops — user mohl změnit barvy po výpočtu
+  try {
+    if (typeof stops !== 'undefined' && typeof orders !== 'undefined') {
+      stops.forEach(st => {
+        if (!st || !st.id) return;
+        for (const o of orders) {
+          if (!o.addresses) continue;
+          for (const a of o.addresses) {
+            if (a.id === st.id) {
+              st.rals    = { ...(a.rals    || {}) };
+              st.serials = { ...(a.serials || st.serials || {}) };
+              return;
+            }
+          }
+        }
+      });
+    }
+  } catch (e) {}
+
   if (assignedVehicles.length === 0) {
     if (empty) empty.style.display = 'flex';
     return;
@@ -7544,6 +8666,13 @@ function renderPlanView() {
         <button class="vtab ${currentView === '3d'       ? 'active' : ''}" data-v="3d" style="color:${currentView==='3d'?'#fff':'var(--purple)'}; border-color:var(--purple);">3D</button>
         <button class="vtab ${currentView === 'protocol' ? 'active' : ''}" data-v="protocol" style="color:${currentView==='protocol'?'#fff':'var(--blue)'}; border-color:var(--blue);">📋 Protokol</button>
         ${(currentView==='top'||currentView==='side'||currentView==='back') ? `
+        <div style="display:inline-flex;border:1px solid var(--border);border-radius:4px;margin-left:8px;overflow:hidden;font-family:'IBM Plex Mono',monospace;font-size:9px;">
+          <button onclick="window._planColorMode='stop';renderPlanView();" title="Barvy podle pořadí vykládky"
+            style="padding:4px 10px;border:none;cursor:pointer;background:${(window._planColorMode||'stop')==='stop'?'var(--accent,#f0c040)':'transparent'};color:${(window._planColorMode||'stop')==='stop'?'#000':'var(--muted)'};font-weight:${(window._planColorMode||'stop')==='stop'?'700':'400'};white-space:nowrap;">📍 Vykládky</button>
+          <button onclick="window._planColorMode='ral';renderPlanView();" title="Barvy podle RAL barev (skutečné barvy beden)"
+            style="padding:4px 10px;border:none;cursor:pointer;background:${window._planColorMode==='ral'?'var(--purple,#b07fff)':'transparent'};color:${window._planColorMode==='ral'?'#fff':'var(--muted)'};font-weight:${window._planColorMode==='ral'?'700':'400'};white-space:nowrap;">🎨 RAL</button>
+        </div>` : ''}
+        ${(currentView==='top'||currentView==='side'||currentView==='back') ? `
         <button onclick="toggleEditMode()" title="Klikáním označ špatně umístěné boxy"
           style="font-family:'IBM Plex Mono',monospace;font-size:9px;padding:4px 10px;border-radius:3px;
                  cursor:pointer;margin-left:6px;white-space:nowrap;
@@ -7593,7 +8722,39 @@ function renderPlanView() {
         ? '<div id="threeContainer" style="width:100%;height:600px;flex:0 0 auto;"></div>'
         : currentView === 'protocol'
           ? '<div id="protocolView"></div>'
-          : `<div style="width:100%;height:340px;flex:0 0 340px;position:relative;">
+          : `${(() => {
+              // Legenda vykládek nad plánem: firma, č. objednávky, adresa, počet beden
+              try {
+                if (!av || !av.units || !av.units.length) return '';
+                const vstopsList = [...new Map(av.units.map(u => [u.stopIdx, u])).values()].sort((a,b) => (a.stopIdx||0) - (b.stopIdx||0));
+                const stopBoxCounts = {};
+                av.units.forEach(u => { stopBoxCounts[u.stopIdx] = (stopBoxCounts[u.stopIdx] || 0) + 1; });
+                const safeEsc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+                const legendItems = vstopsList.map(u => {
+                  const st = (typeof stops !== 'undefined' && stops) ? stops[u.stopIdx] : null;
+                  const firma = (st && st.customer) ? st.customer : '';
+                  const obj = (st && st.orderNo) ? `obj. ${st.orderNo}` : '';
+                  const cnt = stopBoxCounts[u.stopIdx] || 0;
+                  const adr = u.stopName || (st && st.name) || '';
+                  const shortAdr = adr.length > 60 ? adr.slice(0, 60) + '…' : adr;
+                  const meta = [firma, obj].filter(x => x).join(' · ');
+                  const sc = stopColor(u.stopIdx || 0);
+                  return `<div style="display:flex;align-items:flex-start;gap:8px;padding:5px 8px;background:${sc}14;border-left:3px solid ${sc};border-radius:4px;font-size:11px;line-height:1.35;">
+                    <div style="background:${sc};color:#fff;font-weight:700;font-family:'IBM Plex Mono',monospace;font-size:10px;border-radius:3px;padding:2px 6px;min-width:18px;text-align:center;flex:0 0 auto;">${(u.stopIdx||0)+1}</div>
+                    <div style="flex:1;min-width:0;">
+                      ${meta ? `<div style="color:${sc};font-weight:600;font-size:11px;">${safeEsc(meta)}</div>` : ''}
+                      <div style="color:var(--text);font-size:10px;${meta?'opacity:0.85;':''}">${safeEsc(shortAdr)}</div>
+                    </div>
+                    <div style="color:var(--muted);font-size:9px;white-space:nowrap;flex:0 0 auto;">${cnt} ks</div>
+                  </div>`;
+                }).join('');
+                return `<div style="display:flex;flex-direction:column;gap:4px;padding:8px;background:var(--panel2);border:1px solid var(--border);border-radius:6px;flex:0 0 auto;">${legendItems}</div>`;
+              } catch (err) {
+                console.warn('Plan legend render failed:', err);
+                return '';
+              }
+            })()}
+            <div style="width:100%;height:340px;flex:0 0 340px;position:relative;">
                <div id="threeContainer" style="width:100%;height:100%;border:1px solid rgba(120,140,180,0.5);border-radius:8px;background:#0d1117;overflow:hidden;position:relative;"></div>
                <button onclick="currentView='3d';renderPlanView();" title="Zvětšit na celé okno"
                        style="position:absolute;top:10px;right:10px;z-index:10;background:rgba(13,17,23,0.85);border:1px solid rgba(120,140,180,0.55);color:rgba(255,255,255,0.9);padding:6px 12px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600;letter-spacing:0.3px;font-family:'IBM Plex Mono',monospace;backdrop-filter:blur(4px);transition:background 0.15s;"
@@ -7601,13 +8762,57 @@ function renderPlanView() {
                  ⛶ PLNÝ 3D POHLED
                </button>
              </div>
-             <div style="flex:1 1 auto;min-height:560px;padding:12px;border:1px solid var(--border);border-radius:8px;background:#0d1117;display:flex;align-items:flex-start;justify-content:center;overflow:auto;">
+             <div id="planCanvasBox" style="flex:1 1 auto;min-height:560px;padding:12px;border:1px solid var(--border);border-radius:8px;background:#0d1117;display:flex;align-items:flex-start;justify-content:center;overflow:auto;">
                <canvas id="planCanvas" style="max-width:100%;"></canvas>
              </div>`
       }
     </div>
     ${checklistHTML}
     </div>
+    ${(() => {
+      // Migrace + zobrazení GLOBÁLNÍ parking zóny (sdílená napříč všemi auty)
+      try { migrateLegacyParked(); } catch (e) {}
+      const parked = window._globalParked || [];
+      if (!placeMode || parked.length === 0) return '';
+      // Sestavit options pro select s cílovými auty
+      const vehOpts = assignedVehicles.map((vv, vi) => {
+        const lbl = (vv.veh && vv.veh.label) || ('Auto ' + (vi+1));
+        const part = vv.veh && vv.veh._part ? (vv.veh._part === 'auto' ? ' (auto)' : ' (vlek)') : '';
+        return `<option value="${vi}"${vi === selectedVehicleIdx ? ' selected' : ''}>#${vi+1} · ${lbl}${part}</option>`;
+      }).join('');
+      return `<div id="globalParkingZone" style="margin-top:10px;padding:10px 12px;border:1px dashed var(--orange);border-radius:6px;background:rgba(249,115,22,0.06);">
+        <div style="font-size:11px;color:var(--orange);margin-bottom:8px;font-weight:600;display:flex;align-items:center;justify-content:space-between;">
+          <span>🅿️ Globální parkovací zóna (${parked.length}) — bedny odložené napříč všemi vozidly</span>
+          <span style="font-size:9px;color:var(--muted);font-weight:400;">Klikněte „↩ Vložit" pro vrácení do vybraného auta. Můžete změnit cíl v rozbalovacím seznamu.</span>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          ${parked.map((p, idx) => {
+            const pbt = boxTypeMap.get(p.box.typeId);
+            const dim = pbt ? `${pbt.l}×${pbt.w}×${pbt.h}` : '';
+            const nestedTxt = p.nested && p.nested.length ? ` <span style="color:var(--muted);">(+${p.nested.length} vnořeno)</span>` : '';
+            const sourceTxt = p.sourceVehLabel ? `z ${p.sourceVehLabel}` : '';
+            return `<div draggable="true" ondragstart="event.dataTransfer.setData('parkedIdx', '${idx}');event.dataTransfer.effectAllowed='move';this.style.opacity='0.5';" ondragend="this.style.opacity='1';"
+                   style="background:var(--panel);border:1px solid var(--orange);border-radius:6px;padding:8px 10px;min-width:200px;cursor:move;">
+              <div style="font-size:11px;color:var(--text);margin-bottom:2px;">
+                <b>${pbt ? pbt.name : '?'}</b>${nestedTxt}
+              </div>
+              <div style="font-size:9px;color:var(--muted);margin-bottom:6px;">
+                ${dim} mm · vykl. ${(p.box.stopIdx || 0) + 1}${sourceTxt ? ' · ' + sourceTxt : ''}
+              </div>
+              <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
+                <select id="parkTarget_${idx}" style="font-size:10px;padding:3px 5px;border-radius:3px;border:1px solid var(--border);background:var(--bg);color:var(--text);flex:1;min-width:90px;">
+                  ${vehOpts}
+                </select>
+                <button onclick="unparkBoxToVehicle(${idx}, +document.getElementById('parkTarget_${idx}').value)"
+                  style="font-size:10px;padding:4px 8px;border-radius:4px;border:1px solid var(--green,#3dd68c);background:rgba(61,214,140,0.08);color:var(--green,#3dd68c);cursor:pointer;white-space:nowrap;">↩ Vložit</button>
+                <button onclick="discardParkedBox(${idx})"
+                  style="font-size:10px;padding:4px 8px;border-radius:4px;border:1px solid var(--red,#e24b4a);background:transparent;color:var(--red,#e24b4a);cursor:pointer;">✕</button>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+    })()}
     ${placeMode && av && av.parked && av.parked.length ? `
     <div style="margin-top:8px;padding:10px 12px;border:1px dashed var(--orange);border-radius:6px;background:rgba(249,115,22,0.05);">
       <div style="font-size:11px;color:var(--orange);margin-bottom:8px;font-weight:600;">
@@ -7928,11 +9133,29 @@ function rotateBox90(box) {
   _toast('Bedna otočena o 90°.');
 }
 
-// ─── Ruční úprava: Odložit bednu mimo vůz (do parkovací zóny pod plánem) ──────
+// Globální "parkovací zóna" — odložené bedny napříč VŠEMI vozidly
+// (dříve byly per-vehicle av.parked[], ale logičtější je sdílený prostor:
+// odložím u auta č.1, vrátím do auta č.3)
+if (typeof window._globalParked === 'undefined') window._globalParked = [];
+
+// Migrace ze starého per-vehicle stavu, pokud někdo načte starší plán z historie
+function migrateLegacyParked() {
+  if (!Array.isArray(assignedVehicles)) return;
+  for (const av of assignedVehicles) {
+    if (av && av.parked && av.parked.length) {
+      for (const p of av.parked) {
+        window._globalParked.push({ ...p, sourceVehLabel: av.veh && av.veh.label });
+      }
+      av.parked = [];
+    }
+  }
+}
+window.migrateLegacyParked = migrateLegacyParked;
+
+// ─── Ruční úprava: Odložit bednu mimo vůz (do GLOBÁLNÍ parkovací zóny) ──────
 function parkBoxAside(box) {
   document.getElementById('boxActionMenu')?.remove();
   const av = assignedVehicles[selectedVehicleIdx]; if (!av) return;
-  if (!av.parked) av.parked = [];
   // pokud má bedna vnořené uvnitř (isNested s pozicí uvnitř box), odlož je spolu
   const bt = boxTypeMap.get(box.typeId);
   const bL = box.dispL || (bt ? bt.l : 0), bW = box.dispW || (bt ? bt.w : 0);
@@ -7940,31 +9163,64 @@ function parkBoxAside(box) {
     && b.x >= box.x - 1 && b.y >= box.y - 1 && b.z >= box.z - 1
     && b.x < box.x + bL && b.y < box.y + bW);
   av.layout = (av.layout || []).filter(b => b !== box && !nestedHere.includes(b));
-  av.parked.push({ box, nested: nestedHere });
+  // Odebrat bednu(y) i z av.units — abychom správně aktualizovali počty
+  const removeUnit = (b) => {
+    const idx = av.units.findIndex(u => u.typeId === b.typeId && u.stopIdx === b.stopIdx && u._idx === b._idx);
+    if (idx >= 0) av.units.splice(idx, 1);
+  };
+  removeUnit(box);
+  nestedHere.forEach(removeUnit);
+  // Vložit do globální zóny s referencí na zdrojové auto
+  window._globalParked.push({
+    box, nested: nestedHere,
+    sourceVehLabel: av.veh && av.veh.label,
+    sourceVehIdx: selectedVehicleIdx,
+    parkedAt: Date.now()
+  });
   try { renderPlanView(); } catch (e) {}
-  _toast('Bedna odložena mimo vůz — najdeš ji v zóně pod plánem.');
+  _toast('Bedna odložena do parkovací zóny — lze ji vložit do jakéhokoliv auta.');
 }
 
-// Vrátit odloženou bednu do vozu — spustí výběr volného místa na podlaze
-function unparkBox(parkedIdx) {
-  const av = assignedVehicles[selectedVehicleIdx]; if (!av || !av.parked) return;
-  const p = av.parked[parkedIdx]; if (!p) return;
-  av.layout.push(p.box);
-  if (p.nested && p.nested.length) av.layout.push(...p.nested);
-  av.parked.splice(parkedIdx, 1);
+// Vrátit odloženou bednu do KONKRÉTNÍHO auta (default = aktuální)
+function unparkBoxToVehicle(parkedIdx, targetVehIdx) {
+  if (typeof targetVehIdx !== 'number') targetVehIdx = selectedVehicleIdx;
+  const p = window._globalParked[parkedIdx]; if (!p) return;
+  const targetAv = assignedVehicles[targetVehIdx];
+  if (!targetAv) { alert('Cílové auto nenalezeno.'); return; }
+  // Přidat box + nested zpět do cílového auta — do layout i do units
+  targetAv.layout = targetAv.layout || [];
+  targetAv.units = targetAv.units || [];
+  targetAv.layout.push(p.box);
+  if (p.nested && p.nested.length) targetAv.layout.push(...p.nested);
+  targetAv.units.push(p.box);
+  if (p.nested && p.nested.length) targetAv.units.push(...p.nested);
+  // Odstranit ze parking
+  window._globalParked.splice(parkedIdx, 1);
+  // Přepnout na cílové auto a najít volné místo
+  const prevSelected = selectedVehicleIdx;
+  selectedVehicleIdx = targetVehIdx;
   try { renderPlanView(); } catch (e) {}
-  // okamžitě nabídnout nové místo pro položení na podlahu
-  if (typeof offerSpots === 'function') offerSpots(p.box, 'floor');
+  if (typeof offerSpots === 'function') {
+    setTimeout(() => offerSpots(p.box, 'floor'), 50);
+  }
+  _toast(`Bedna vrácena do: ${targetAv.veh && targetAv.veh.label || 'vůz ' + (targetVehIdx + 1)}`);
 }
+// Zachovat zpětnou kompatibilitu: starý název volá novou funkci s aktuálním autem
+function unparkBox(parkedIdx) { unparkBoxToVehicle(parkedIdx, selectedVehicleIdx); }
 
-// Smazat odloženou bednu úplně z plánu (z objednávky zůstane)
+// Smazat odloženou bednu úplně z plánu (z objednávky zůstane → příští výpočet ji použije)
 function discardParkedBox(parkedIdx) {
-  const av = assignedVehicles[selectedVehicleIdx]; if (!av || !av.parked) return;
+  const p = window._globalParked[parkedIdx]; if (!p) return;
   if (!confirm('Smazat odloženou bednu z plánu? Z objednávky zůstane — appka ji zase použije při příštím výpočtu.')) return;
-  av.parked.splice(parkedIdx, 1);
+  window._globalParked.splice(parkedIdx, 1);
   try { renderPlanView(); } catch (e) {}
   _toast('Bedna smazána z plánu.');
 }
+
+window.parkBoxAside = parkBoxAside;
+window.unparkBoxToVehicle = unparkBoxToVehicle;
+window.unparkBox = unparkBox;
+window.discardParkedBox = discardParkedBox;
 
 // Globální fits-check pro vnoření (zjednodušená kopie nestFits — přístupná z menu)
 function canNestInto(inner, outer) {
@@ -8225,13 +9481,15 @@ function exportPlanErrors() {
 }
 
 function drawPlan(av, veh) {
-  const wrap = document.getElementById('canvasWrap');
+  // Měříme planCanvasBox (přímý kontejner canvasu) — nikoliv canvasWrap,
+  // protože ten teď obsahuje i legendu vykládek + 3D náhled
+  const wrap = document.getElementById('planCanvasBox') || document.getElementById('canvasWrap');
   const canvas = document.getElementById('planCanvas');
   if (!wrap || !canvas) return;
   const ctx = canvas.getContext('2d');
 
   const aw = wrap.clientWidth - 32;
-  const ah = wrap.clientHeight - 32;
+  const ah = Math.max(300, wrap.clientHeight - 32);   // minimum, kdyby flex ještě nestihl
 
   // Každý vlek/auto je nyní SAMOSTATNÝ kontejner se svojí veh.L
   const isAuto = veh._part === 'auto';
@@ -8324,7 +9582,30 @@ function drawPlan(av, veh) {
   };
   // V černobílém režimu rozliš zastávky odstíny šedi (světlejší = pozdější vykládka)
   const grayForStop = si => { const g = [210, 170, 130, 95, 60][(si||0) % 5]; return `rgb(${g},${g},${g})`; };
-  const fillForStop = (b) => BW ? grayForStop(b.stopIdx||0) : (b.color || stopColor(b.stopIdx));
+  // Vrátí barvu boxu — v RAL módu hledá konkrétní RAL barvu, jinak používá pořadí vykládky
+  const fillForStop = (b) => {
+    if (BW) return grayForStop(b.stopIdx || 0);
+    if (window._planColorMode === 'ral') {
+      let ral = null;
+      const st = (typeof stops !== 'undefined' && stops[b.stopIdx]) || null;
+      if (st && st.rals && st.rals[b.typeId]) ral = st.rals[b.typeId];
+      if (!ral && st && typeof orders !== 'undefined') {
+        ralLookup: for (const o of orders) {
+          if (!o.addresses) continue;
+          for (const a of o.addresses) {
+            if (a.id === st.id && a.rals && a.rals[b.typeId]) {
+              ral = a.rals[b.typeId];
+              if (!st.rals) st.rals = {};
+              st.rals[b.typeId] = ral;
+              break ralLookup;
+            }
+          }
+        }
+      }
+      return ral ? ral.hex : '#5a5a5a';
+    }
+    return b.color || stopColor(b.stopIdx);
+  };
 
   // Background
   ctx.fillStyle = PAL.bg;
@@ -8546,7 +9827,7 @@ function drawPlan(av, veh) {
       }
       const mx = rx + (rw-mrw)/2, my = ry + (rh-mrh)*0.42;
       ctx.globalAlpha = BW ? 1 : 0.88;
-      ctx.fillStyle = BW ? '#ffffff' : (nestedBox.color || stopColor(nestedBox.stopIdx));
+      ctx.fillStyle = BW ? '#ffffff' : fillForStop(nestedBox);
       ctx.fillRect(mx, my, mrw, mrh);
       ctx.globalAlpha = 1;
       ctx.strokeStyle = BW ? '#000' : 'rgba(255,255,255,0.9)'; ctx.lineWidth = 1.5;
@@ -9015,7 +10296,25 @@ function init3D(av, veh) {
     // proto Z mapujeme obráceně než dřív, ať 3D sedí s 2D půdorysem.
     const cz = (b.y * S + w / 2) - tW;
 
-    const color = hexToThree(b.color || stopColor(b.stopIdx || 0));
+    // Barva: buď podle pořadí vykládky, nebo podle RAL barvy
+    let boxColorHex = b.color || stopColor(b.stopIdx || 0);
+    if (window._planColorMode === 'ral') {
+      let ral = null;
+      const st = (typeof stops !== 'undefined' && stops[b.stopIdx]) || null;
+      if (st && st.rals && st.rals[b.typeId]) ral = st.rals[b.typeId];
+      if (!ral && st && typeof orders !== 'undefined') {
+        outer3: for (const o of orders) {
+          if (!o.addresses) continue;
+          for (const a of o.addresses) {
+            if (a.id === st.id && a.rals && a.rals[b.typeId]) {
+              ral = a.rals[b.typeId]; break outer3;
+            }
+          }
+        }
+      }
+      boxColorHex = ral ? ral.hex : '#5a5a5a';
+    }
+    const color = hexToThree(boxColorHex);
     const geo = new THREE.BoxGeometry(Math.max(0.02, l - inset), Math.max(0.02, h - inset), Math.max(0.02, w - inset));
     const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color, roughness: 0.62, metalness: 0.04 }));
     mesh.position.set(cx, cy, cz);
@@ -9138,6 +10437,7 @@ function setupEventListeners() {
       if (btn.dataset.page !== 'pageResults') dispose3D();
       if (btn.dataset.page === 'pageStress') initStressIfNeeded();
       if (btn.dataset.page === 'pageResults' && assignedVehicles.length > 0) renderPlanView();
+      if (btn.dataset.page === 'pageProfile' && typeof renderProfilePage === 'function') renderProfilePage();
     });
   });
 
@@ -9219,15 +10519,45 @@ function setupEventListeners() {
 
 const ORIGIN = { name: 'Bruntál, Česká republika', lat: 49.9882, lon: 17.4641 };
 
+// Globální cache souřadnic adres — sdílená napříč voláními, šetří Nominatim API
+const _geocodeCache = new Map();   // address → {lat, lon, display}
+
 async function geocodeAddress(address) {
+  if (!address) return null;
+  // Cache hit
+  if (_geocodeCache.has(address)) return _geocodeCache.get(address);
   const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`;
-  const res = await fetch(url, { headers: { 'Accept-Language': 'cs,en' } });
-  const data = await res.json();
-  if (data && data.length > 0) {
-    return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon), display: data[0].display_name };
-  }
+  try {
+    const res = await fetch(url, { headers: { 'Accept-Language': 'cs,en' } });
+    const data = await res.json();
+    if (data && data.length > 0) {
+      const result = { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon), display: data[0].display_name };
+      _geocodeCache.set(address, result);
+      return result;
+    }
+  } catch (e) { /* offline / quota / parse error */ }
+  _geocodeCache.set(address, null);   // negative cache, neopakovat dotaz
   return null;
 }
+
+// Předem stáhne souřadnice pro všechny vykládky v stops[] (paralelně, s rate-limit)
+// Volá se na pozadí po výpočtu plánu — uživatel pak vidí mapu okamžitě.
+async function prefetchRouteData() {
+  if (!stops || !stops.length) return;
+  const toFetch = stops.filter(s => s.name && !_geocodeCache.has(s.name));
+  if (!toFetch.length) return;
+  // Nominatim politely rate-limited: 1 req/s max, ale my běžíme malé qty paralelně
+  // se zpožděním. Pro 5 adres je to OK.
+  const BATCH = 3;
+  for (let i = 0; i < toFetch.length; i += BATCH) {
+    const batch = toFetch.slice(i, i + BATCH);
+    await Promise.all(batch.map(s => geocodeAddress(s.name).then(c => {
+      if (c) s.coord = { lat: c.lat, lon: c.lon };
+    }).catch(() => {})));
+    if (i + BATCH < toFetch.length) await new Promise(r => setTimeout(r, 1100));   // rate-limit pauza
+  }
+}
+window.prefetchRouteData = prefetchRouteData;
 
 function haversine(a, b) {
   const R = 6371;
@@ -9417,6 +10747,7 @@ function importExcel(file) {
         const pocet = Math.max(1, parseInt(getVal(row, ['pocet','kusy','qty','count','ks'])) || 1);
         const adr = String(getVal(row, ['zastavka_adresa','adresa','address','zastavka']) || '').trim();
         const obj = String(getVal(row, ['objednatel','customer','zakaznik','order_name']) || 'Import').trim();
+        const ralRaw = String(getVal(row, ['ral_barva','ral','barva','color','farba']) || '').trim();
         if (!l || !w || !h || !adr) { errors++; return; }
 
         // 1) Najdi existující typ se shodnými rozměry — sloučí se s ním (žádný duplikát)
@@ -9438,8 +10769,14 @@ function importExcel(file) {
         }
 
         if (!orderMap[obj]) orderMap[obj] = {};
-        if (!orderMap[obj][adr]) orderMap[obj][adr] = { id: nextId++, address: adr, boxes: {} };
+        if (!orderMap[obj][adr]) orderMap[obj][adr] = { id: nextId++, address: adr, boxes: {}, serials: {}, rals: {} };
+        if (!orderMap[obj][adr].rals)    orderMap[obj][adr].rals = {};
+        if (!orderMap[obj][adr].serials) orderMap[obj][adr].serials = {};
         orderMap[obj][adr].boxes[bt.id] = (orderMap[obj][adr].boxes[bt.id] || 0) + pocet;
+        if (ralRaw) {
+          const ral = findRalColor(ralRaw);
+          if (ral) orderMap[obj][adr].rals[bt.id] = { ral: ral.ral, hex: ral.hex };
+        }
         addedBoxes += pocet;
       });
 
@@ -9488,16 +10825,151 @@ function _buildOrderMapFromOrders(existing) {
   return map;
 }
 
+// ── Uložit JEDNU objednávku do JSON souboru ────────────────────────────
+// Spolu s objednávkou se uloží i použité typy beden (boxTypes), aby
+// druhá strana měla úplnou strukturu. Při načtení se typy sloučí podle
+// rozměrů (nevytváří se duplicity).
+function saveSingleOrderToFile(order) {
+  if (!order) return;
+  // Posbírej typy boxů, které tato objednávka skutečně používá
+  const usedIds = new Set();
+  (order.addresses || []).forEach(a => {
+    Object.keys(a.boxes || {}).forEach(id => {
+      if ((a.boxes[id] || 0) > 0) usedIds.add(+id);
+    });
+  });
+  const usedTypes = (boxTypes || []).filter(bt => usedIds.has(bt.id));
+
+  const data = {
+    app: 'ELKOPLAST Lozny plany',
+    type: 'single_order',
+    version: (typeof APP_VERSION !== 'undefined') ? APP_VERSION : '1.0.0',
+    exportedAt: new Date().toISOString(),
+    order: {
+      orderNo: order.orderNo || '',
+      customer: order.customer || '',
+      name: order.name || '',
+      color: order.color || '#f0c040',
+      addresses: (order.addresses || []).map(a => ({
+        address: a.address || '',
+        boxes: { ...(a.boxes || {}) },
+        serials: { ...(a.serials || {}) },
+        rals: { ...(a.rals || {}) }
+      }))
+    },
+    boxTypes: usedTypes.map(bt => ({
+      id: bt.id, name: bt.name, l: bt.l, w: bt.w, h: bt.h,
+      hi: bt.hi || 0, viko: bt.viko || 0, kg: bt.kg || 0, color: bt.color || '#888'
+    }))
+  };
+  const safeName = (order.customer || order.name || 'objednavka').replace(/[^\w\u00C0-\u017F\s.-]/g, '').trim().slice(0, 40) || 'objednavka';
+  const fname = safeName.replace(/\s+/g, '_') + '_' + new Date().toISOString().slice(0, 10) + '.objednavka.json';
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = fname;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  if (window.logAction) window.logAction('akce', '💾 Objednávka uložena do souboru: ' + fname);
+}
+
+// ── Načíst JEDNU objednávku ze souboru — přidá k existujícím ────────────
+function loadSingleOrderFromFile(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data || !data.order) { alert('Soubor není platný export objednávky.'); return; }
+      const incoming = data.order;
+      const incomingTypes = data.boxTypes || [];
+
+      // Slij incoming boxTypes s existujícími podle rozměrů (l, w, h)
+      // Vytvoří mapping: oldId → newId
+      const idMap = {};
+      incomingTypes.forEach(bt => {
+        const match = boxTypes.find(t => t.l === bt.l && t.w === bt.w && t.h === bt.h);
+        if (match) {
+          idMap[bt.id] = match.id;
+        } else {
+          const newBt = { ...bt, id: nextId++ };
+          boxTypes.push(newBt);
+          idMap[bt.id] = newBt.id;
+        }
+      });
+
+      // Vytvoř novou objednávku s remapovanými id beden
+      const newOrderObj = {
+        id: nextId++,
+        orderNo: incoming.orderNo || '',
+        customer: incoming.customer || '',
+        name: incoming.name || ('Načteno ' + new Date().toLocaleDateString('cs-CZ')),
+        color: incoming.color || ORDER_COLORS[orders.length % ORDER_COLORS.length],
+        addresses: (incoming.addresses || []).map(a => {
+          const newBoxes = {}, newSerials = {}, newRals = {};
+          Object.keys(a.boxes || {}).forEach(oldId => {
+            const nid = idMap[+oldId] || +oldId;
+            newBoxes[nid] = (newBoxes[nid] || 0) + (+a.boxes[oldId] || 0);
+            if (a.serials && a.serials[oldId]) newSerials[nid] = a.serials[oldId];
+            if (a.rals && a.rals[oldId]) newRals[nid] = a.rals[oldId];
+          });
+          return { id: nextId++, address: a.address || '', boxes: newBoxes, serials: newSerials, rals: newRals };
+        })
+      };
+
+      // Zeptej se: přidat / nahradit
+      const choice = confirm(
+        '📂 Načíst objednávku „' + (newOrderObj.customer || newOrderObj.name) + '"\n\n' +
+        '• OK = PŘIDAT k existujícím objednávkám\n' +
+        '• Zrušit = NAHRADIT všechny aktuální objednávky touto'
+      );
+      if (choice) {
+        orders.push(newOrderObj);
+      } else {
+        if (!confirm('Opravdu NAHRADIT aktuální objednávky? Současné zadání bude ztraceno.')) return;
+        orders = [newOrderObj];
+      }
+      stops = []; assignedVehicles = [];
+      try { rebuildBoxTypeMap(); } catch (er) {}
+      try { renderBoxTypes(); } catch (er) {}
+      try { renderOrders(); } catch (er) {}
+      try { saveWorkspace(); } catch (er) {}
+      const btn = document.getElementById('calcBtn');
+      if (btn) { btn.textContent = '⚡ Přepočítat ložné plány ⚠'; btn.style.background = 'var(--orange)'; }
+      if (window.logAction) window.logAction('akce', '📂 Načtena objednávka ze souboru: ' + (newOrderObj.customer || newOrderObj.name));
+    } catch (err) {
+      alert('Soubor není platný: ' + (err.message || err));
+    }
+  };
+  reader.readAsText(file);
+}
+
+window.saveSingleOrderToFile = saveSingleOrderToFile;
+window.loadSingleOrderFromFile = loadSingleOrderFromFile;
+
 // Stáhne vzorový .xlsx soubor s předvyplněnými ukázkovými řádky
 function downloadExcelTemplate() {
   const data = [
-    ['OBJEDNATEL', 'ZASTAVKA_ADRESA', 'X_DELKA_MM', 'Y_SIRKA_MM', 'Z_VYSKA_MM', 'HMOTNOST_KG', 'POCET', 'HI', 'VIKO', 'NAZEV'],
-    ['Bieri Alteisen', 'Rothenburg LU',           1600, 1200, 1100, 200, 27,  980, 0, 'CPR 19.00'],
-    ['Bieri Alteisen', 'Rothenburg LU',           1200,  800,  920, 105,  9,  800, 0, 'CPR 08.00'],
-    ['Schneider',      'Aarauerstrasse 112, Brugg', 1600, 1200, 1260, 220, 10, 1140, 0, 'CPR 22.00'],
+    ['OBJEDNATEL', 'ZASTAVKA_ADRESA', 'X_DELKA_MM', 'Y_SIRKA_MM', 'Z_VYSKA_MM', 'HMOTNOST_KG', 'POCET', 'HI', 'VIKO', 'RAL_BARVA', 'NAZEV'],
+    ['Bieri Alteisen GmbH', 'Industriestrasse 12, 6023 Rothenburg, Switzerland',     1600, 1200, 1100, 200, 27,  980, 0, 'RAL 5010', 'CPR 19.00'],
+    ['Bieri Alteisen GmbH', 'Industriestrasse 12, 6023 Rothenburg, Switzerland',     1200,  800,  920, 105,  9,  800, 0, 'RAL 5010', 'CPR 08.00'],
+    ['Schneider Umweltservice AG', 'Aarauerstrasse 112, 5200 Brugg, Switzerland',    1600, 1200, 1260, 220, 10, 1140, 0, 'RAL 3020', 'CPR 22.00'],
+    ['Kurt Landolt Alteisen AG', 'Mollisstrasse 17, 8854 Näfels, Switzerland',       1600, 1200, 1100, 200, 12,  980, 0, 'RAL 6018', 'CPR 19.00'],
+    ['SBB Infrastruktur', 'Bahnhofstrasse 1, 8732 Trimmbach, Switzerland',           1200,  800,  920, 105,  8,  800, 0, '', 'CPR 08.00'],
   ];
   try {
     const ws = XLSX.utils.aoa_to_sheet(data);
+    // nastavit šířky sloupců, aby byl vzor čitelný
+    ws['!cols'] = [
+      { wch: 28 },  // OBJEDNATEL
+      { wch: 56 },  // ZASTAVKA_ADRESA (úplná adresa)
+      { wch: 12 }, { wch: 12 }, { wch: 12 },   // rozměry
+      { wch: 14 },  // HMOTNOST_KG
+      { wch: 8 },   // POCET
+      { wch: 8 },   // HI
+      { wch: 8 },   // VIKO
+      { wch: 11 },  // RAL_BARVA
+      { wch: 14 },  // NAZEV
+    ];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Objednavky');
     XLSX.writeFile(wb, 'lozny-plan-vzor.xlsx');
@@ -9550,7 +11022,7 @@ document.getElementById('xlsxInput').addEventListener('change', (e) => {
 
 document.getElementById('addOrderBtn').addEventListener('click', () => {
   const idx = orders.length;
-  orders.push({ id: nextId++, orderNo: '', name: `Objednávka ${idx + 1}`, color: ORDER_COLORS[idx % ORDER_COLORS.length], addresses: [{ id: nextId++, address: '', boxes: {} }] });
+  orders.push({ id: nextId++, orderNo: '', customer: '', name: `Objednávka ${idx + 1}`, color: ORDER_COLORS[idx % ORDER_COLORS.length], addresses: [{ id: nextId++, address: '', boxes: {}, serials: {}, rals: {} }] });
   stops = [];
   renderOrders();
 });
@@ -10225,14 +11697,39 @@ function packBlocks(units) {
   LOAD_RULES.backfillFloor = true;
   LOAD_RULES.backfillVertical = true;
 
-  // sort: největší půdorys dolů, stejné typy pohromadě (homogenní věže), vyšší dřív
+  // BLOCK DETECTION: spočítej velikosti skupin (stejný typeId + stopIdx)
+  // Skupiny ≥ 5 ks → preference v rámci stejně velkých půdorysů
+  const groupKey = (u) => `${u.stopIdx || 0}|${u.typeId}`;
+  const groupSizes = new Map();
+  for (const u of units) {
+    const k = groupKey(u);
+    groupSizes.set(k, (groupSizes.get(k) || 0) + 1);
+  }
+  const BLOCK_THRESHOLD = 5;        // 5+ kusů stejného typu
+
+  // sort: PRIMARY = velikost půdorysu (klasické bin packing optimum),
+  //       SECONDARY = velké skupiny (uvnitř stejně velkých půdorysů)
   const blockSort = (a, b) => {
     const ta = boxTypeMap.get(a.typeId), tb = boxTypeMap.get(b.typeId);
     const fpA = ta ? ta.l * ta.w : 0, fpB = tb ? tb.l * tb.w : 0;
-    if (fpB !== fpA) return fpB - fpA;                 // velký půdorys napřed
-    if (a.typeId !== b.typeId) return a.typeId - b.typeId; // stejné typy k sobě
+
+    // 1) Velký půdorys napřed — klasické "first-fit-decreasing" optimum
+    if (fpB !== fpA) return fpB - fpA;
+
+    // 2) Stejně velký půdorys: velké skupiny (≥5 ks) napřed
+    const sA = groupSizes.get(groupKey(a)) || 0;
+    const sB = groupSizes.get(groupKey(b)) || 0;
+    const aBig = sA >= BLOCK_THRESHOLD ? 1 : 0;
+    const bBig = sB >= BLOCK_THRESHOLD ? 1 : 0;
+    if (aBig !== bBig) return bBig - aBig;
+    if (aBig && sA !== sB) return sB - sA;
+
+    // 3) Stejné typy k sobě (homogenní masa beden vedle sebe)
+    if (a.typeId !== b.typeId) return a.typeId - b.typeId;
+
+    // 4) Vyšší bedny dolů (stabilita věží)
     const hA = ta ? ta.h : 0, hB = tb ? tb.h : 0;
-    return hB - hA;                                    // vyšší bedny napřed
+    return hB - hA;
   };
 
   let result;
@@ -11168,9 +12665,26 @@ function importPlanFromFile(file) {
 
       // Status
       const status = document.getElementById('importStatus');
-      status.textContent = `✓ Načten: ${name}`;
-      status.style.color = 'var(--green)';
-      setTimeout(() => { status.textContent = ''; }, 3000);
+      if (status) {
+        status.textContent = `✓ Načten: ${name}`;
+        status.style.color = 'var(--green)';
+        setTimeout(() => { status.textContent = ''; }, 3000);
+      }
+
+      // Po lokálním importu nabídnout sdílení na server (pro celý tým)
+      setTimeout(() => {
+        const wantShare = confirm(
+          `✓ Lokálně načteno "${name}"\n\n` +
+          `Plán obsahuje:\n` +
+          `  • ${snap.boxTypes.length} typů beden\n` +
+          `  • ${snap.fleet.length} vozidel\n\n` +
+          `Chceš nahrát TYPY BEDEN a VOZOVÝ PARK na server, aby je viděli i kolegové?\n` +
+          `(Tvé objednávky se NEPOŠLOU — ty jsou osobní.)\n\n` +
+          `OK = ANO, sdílet se všemi\n` +
+          `Zrušit = NE, nechat jen lokálně`
+        );
+        if (wantShare && typeof pushToServer === 'function') pushToServer();
+      }, 300);
 
     } catch(err) {
       alert('⚠ Chyba při čtení souboru: ' + err.message);
@@ -11534,6 +13048,10 @@ function saveWorkspace() {
       clearTimeout(ind._t);
       ind._t = setTimeout(() => { ind.style.color = 'var(--muted)'; }, 3000);
     }
+    // Sdílet boxTypes a fleet na server (debounced 1s)
+    if (typeof pushToServer === 'function') {
+      try { pushToServer(); } catch (e) {}
+    }
   } catch(e) { console.warn('Workspace save failed', e); }
 }
 
@@ -11545,7 +13063,7 @@ function resetWorkspace() {
 
 function newOrder() {
   if (!confirm('Začít NOVOU objednávku?\n\nVymaže se aktuální zadání (objednávky, adresy, bedny) i spočítané výsledky a začne se načisto.\n\n(Uložené plány v „📂 Načíst plán" a vozový park zůstanou zachovány.)')) return;
-  orders = [{ id: nextId++, orderNo: '', name: 'Objednávka 1', color: ORDER_COLORS[0], addresses: [{ id: nextId++, address: '', boxes: {} }] }];
+  orders = [{ id: nextId++, orderNo: '', customer: '', name: 'Objednávka 1', color: ORDER_COLORS[0], addresses: [{ id: nextId++, address: '', boxes: {}, serials: {}, rals: {} }] }];
   stops = [];
   assignedVehicles = [];
   _allVehResults = [];
@@ -12326,14 +13844,226 @@ function initApp() {
     renderVehSelect();
     renderBoxTypes();
     renderOrders();
+    try { if (typeof updateProfileWidget === 'function') updateProfileWidget(); } catch (e) {}
+    // pojistka — vyčistit reziduální modaly, které by mohly blokovat kliky
+    try {
+      document.getElementById('profileEditModal')?.remove();
+      document.getElementById('orderHistoryModal')?.remove();
+      document.querySelectorAll('.box-add-dropdown').forEach(d => d.remove());
+    } catch (e) {}
+    // Po startu načti sdílené boxTypes/fleet ze serveru (z /api/shared)
+    setTimeout(() => { try { syncFromServer(); } catch (e) {} }, 200);
+    // Periodicky synchronizovat (každých 60s, jen pokud uživatel je aktivní)
+    setInterval(() => {
+      if (!document.hidden) { try { syncFromServer(true); } catch (e) {} }
+    }, 60000);
   } catch(e) {
     console.error('Init error:', e);
     try { setupEventListeners(); } catch{}
     try { renderFleet(); } catch{}
     try { renderBoxTypes(); } catch{}
     try { renderOrders(); } catch{}
+    try { if (typeof updateProfileWidget === 'function') updateProfileWidget(); } catch{}
   }
 }
+
+// ──────────────────────────────────────────────────────────────────────
+// SDÍLENÉ ÚLOŽIŠTĚ — synchronizace s /api/shared
+// boxTypes a fleet se sdílí mezi všemi uživateli aplikace.
+// Při změně klient pošle PUT, při startu/polling GET → merge.
+// ──────────────────────────────────────────────────────────────────────
+
+let _lastSharedVersion = -1;        // poslední známá verze ze serveru
+let _sharedSyncInFlight = false;
+
+async function syncFromServer(silent) {
+  if (_sharedSyncInFlight) return;
+  _sharedSyncInFlight = true;
+  try {
+    const res = await fetch('/api/shared', { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) return;
+    const data = await res.json();
+    const incomingTypes    = data.boxTypes || [];
+    const incomingFleet    = data.fleet    || [];
+    const incomingOrders   = data.orders   || [];
+    const incomingTeam     = data.team     || [];
+    const incomingActivity = data.activity || [];
+    const incomingHistory  = data.history  || [];
+
+    // ── BEZPEČNOST: NIKDY nepřepisovat lokální data prázdnými ze serveru ──
+    const localHasData = (boxTypes && boxTypes.length > 0) || (fleet && fleet.length > 0)
+      || (orders && orders.length > 0);
+    const serverEmpty = incomingTypes.length === 0 && incomingFleet.length === 0
+      && incomingOrders.length === 0;
+
+    if (serverEmpty && localHasData) {
+      _lastSharedVersion = data.version;
+      if (!window._sharedUploadOffered) {
+        window._sharedUploadOffered = true;
+        setTimeout(() => {
+          const want = confirm(
+            `☁ Sdílené úložiště serveru je prázdné.\n\n` +
+            `Lokálně máš:\n` +
+            `  • ${boxTypes.length} typů beden\n` +
+            `  • ${fleet.length} vozidel\n` +
+            `  • ${orders.length} objednávek\n\n` +
+            `Chceš všechna tato data nahrát na server pro celý tým?\n\n` +
+            `OK = ANO, nahrát (doporučeno)\n` +
+            `Zrušit = NE, nechat na serveru prázdné`
+          );
+          if (want) pushToServer();
+        }, 500);
+      }
+      return;
+    }
+
+    if (data.version <= _lastSharedVersion) return;
+
+    // ── MERGE: spojit data podle ID/klíčů ──
+    // boxTypes: podle (l,w,h)
+    const mergedTypes = [...incomingTypes];
+    const serverTypeKey = new Set(incomingTypes.map(t => `${t.l}|${t.w}|${t.h}`));
+    let addedT = 0;
+    for (const lt of (boxTypes || [])) {
+      if (!serverTypeKey.has(`${lt.l}|${lt.w}|${lt.h}`)) { mergedTypes.push({ ...lt }); addedT++; }
+    }
+    // fleet: podle (label,L,W,H)
+    const mergedFleet = [...incomingFleet];
+    const serverFleetKey = new Set(incomingFleet.map(f => `${f.label}|${f.L}|${f.W}|${f.H}`));
+    let addedF = 0;
+    for (const lf of (fleet || [])) {
+      if (!serverFleetKey.has(`${lf.label}|${lf.L}|${lf.W}|${lf.H}`)) { mergedFleet.push({ ...lf }); addedF++; }
+    }
+    // orders: podle id, server-side má precedenci pro stejné id
+    const ordersById = new Map(incomingOrders.map(o => [o.id, o]));
+    let addedO = 0;
+    for (const lo of (orders || [])) {
+      if (!ordersById.has(lo.id)) { ordersById.set(lo.id, lo); addedO++; }
+    }
+    const mergedOrders = Array.from(ordersById.values());
+    // activity: union podle id (append-only), seřazené sestupně po datu, cap 500
+    const localActivity = (typeof loadActivityLog === 'function') ? loadActivityLog() : [];
+    const allActivity = [...incomingActivity, ...localActivity];
+    const seenIds = new Set();
+    const mergedActivity = allActivity
+      .filter(a => a && a.id && !seenIds.has(a.id) && seenIds.add(a.id))
+      .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+      .slice(0, 500);
+    // history: union podle id, řazené sestupně, cap 30
+    const localHistory = (typeof loadOrderHistory === 'function') ? loadOrderHistory() : [];
+    const histById = new Map(incomingHistory.map(h => [h.id, h]));
+    for (const lh of localHistory) if (!histById.has(lh.id)) histById.set(lh.id, lh);
+    const mergedHistory = Array.from(histById.values())
+      .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+      .slice(0, 30);
+    // team: union podle email (primární klíč) nebo name
+    const teamByKey = new Map();
+    for (const m of incomingTeam) teamByKey.set((m.email || m.name || '').toLowerCase(), m);
+    // přidat sám sebe, pokud nejsi v týmu
+    try {
+      const profile = (typeof getUserProfile === 'function') ? getUserProfile() : null;
+      if (profile && (profile.name || profile.email)) {
+        const k = (profile.email || profile.name || '').toLowerCase();
+        if (!teamByKey.has(k)) teamByKey.set(k, profile);
+      }
+    } catch (e) {}
+    const mergedTeam = Array.from(teamByKey.values());
+
+    boxTypes = mergedTypes;
+    fleet = mergedFleet;
+    orders = mergedOrders;
+    rebuildBoxTypeMap();
+    if (typeof saveActivityLog === 'function')   saveActivityLog(mergedActivity);
+    if (typeof saveOrderHistoryList === 'function') saveOrderHistoryList(mergedHistory);
+    // team uložím do localStorage zvlášť pro UI
+    try { localStorage.setItem('elkoplast_team', JSON.stringify(mergedTeam)); } catch (e) {}
+
+    _lastSharedVersion = data.version;
+    try { renderBoxTypes(); } catch (e) {}
+    try { renderFleet(); } catch (e) {}
+    try { renderVehSelect(); } catch (e) {}
+    try { renderOrders(); } catch (e) {}
+    try { saveWorkspace(); } catch (e) {}
+
+    const ind = document.getElementById('wsIndicator');
+    if (ind && !silent) {
+      const who = data.lastModifiedBy ? ` (${data.lastModifiedBy})` : '';
+      const adds = [addedT, addedF, addedO].filter(x => x > 0).reduce((s, x) => s + x, 0);
+      const extra = adds > 0 ? `, +${adds} unikátních z tvého PC` : '';
+      ind.textContent = `↓ Synchronizováno v${data.version}${who}${extra}`;
+      ind.style.color = 'var(--blue,#4d9fff)';
+      clearTimeout(ind._t);
+      ind._t = setTimeout(() => { ind.style.color = 'var(--muted)'; }, 4500);
+    }
+
+    // Pokud merge přidal lokální položky, push aktualizovaný stav
+    if (addedT + addedF + addedO > 0) pushToServer();
+  } catch (e) {
+    if (!silent) console.warn('Sync from server failed:', e.message);
+  } finally {
+    _sharedSyncInFlight = false;
+  }
+}
+
+// Posílá kompletní stav (boxTypes, fleet, orders, team, activity, history)
+// na server. Debounce 1s.
+let _pushTimer = null;
+function pushToServer() {
+  clearTimeout(_pushTimer);
+  _pushTimer = setTimeout(async () => {
+    try {
+      const profile = (typeof getUserProfile === 'function') ? getUserProfile() : null;
+      const who = profile && profile.name ? profile.name : (profile && profile.email ? profile.email : 'neznámý');
+      // Posbírat lokální data
+      const localActivity = (typeof loadActivityLog === 'function') ? loadActivityLog() : [];
+      const localHistory  = (typeof loadOrderHistory === 'function') ? loadOrderHistory() : [];
+      let localTeam = [];
+      try { localTeam = JSON.parse(localStorage.getItem('elkoplast_team') || '[]'); } catch (e) {}
+      // Přidat sám sebe do team, pokud chybí
+      if (profile && (profile.name || profile.email)) {
+        const k = (profile.email || profile.name || '').toLowerCase();
+        if (!localTeam.find(m => (m.email || m.name || '').toLowerCase() === k)) {
+          localTeam.push({ ...profile, lastActive: new Date().toISOString() });
+        }
+      }
+      const res = await fetch('/api/shared', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          boxTypes: boxTypes || [],
+          fleet:    fleet    || [],
+          orders:   orders   || [],
+          team:     localTeam,
+          activity: localActivity.slice(0, 500),  // cap při push
+          history:  localHistory.slice(0, 30),
+          modifiedBy: who
+        })
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      _lastSharedVersion = data.version;
+      const ind = document.getElementById('wsIndicator');
+      if (ind) {
+        ind.textContent = `↑ Sdíleno na server v${data.version}` + (data.persisted ? '' : ' ⚠');
+        ind.style.color = data.persisted ? 'var(--green,#3dd68c)' : 'var(--orange,#f97316)';
+        clearTimeout(ind._t);
+        ind._t = setTimeout(() => { ind.style.color = 'var(--muted)'; }, 3500);
+      }
+    } catch (e) {
+      console.warn('Push to server failed:', e.message);
+      const ind = document.getElementById('wsIndicator');
+      if (ind) {
+        ind.textContent = '✕ Sdílení selhalo — uloženo jen lokálně';
+        ind.style.color = 'var(--red,#e24b4a)';
+        clearTimeout(ind._t);
+        ind._t = setTimeout(() => { ind.style.color = 'var(--muted)'; }, 3500);
+      }
+    }
+  }, 1000);
+}
+
+window.syncFromServer = syncFromServer;
+window.pushToServer = pushToServer;
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initApp);
@@ -12954,39 +14684,53 @@ function exportStressCsv() {
       const si = u.stopIdx || 0;
       (byStop[si] = byStop[si] || {})[u.typeId] = (byStop[si][u.typeId] || 0) + 1;
     });
-    const stops_ = Object.keys(byStop).map(Number).sort((a, b) => stopOrderIndex(a) - stopOrderIndex(b)).map(si => ({
-      si, name: stopName(si),
-      lines: Object.keys(byStop[si]).map(tid => ({ tid: +tid, count: byStop[si][tid], t: boxTypeMap.get(+tid) })).filter(l => l.t)
-    }));
+    const stops_ = Object.keys(byStop).map(Number).sort((a, b) => stopOrderIndex(a) - stopOrderIndex(b)).map(si => {
+      const st = (typeof stops !== 'undefined' && stops[si]) || {};
+      return {
+        si, name: stopName(si),
+        customer: st.customer || '',
+        orderNo:  st.orderNo  || '',
+        lines: Object.keys(byStop[si]).map(tid => ({
+          tid: +tid,
+          count: byStop[si][tid],
+          t: boxTypeMap.get(+tid),
+          serial: (st.serials && st.serials[+tid]) || ''
+        })).filter(l => l.t)
+      };
+    });
     const label = (vehicles[0] ? vehicles[0].label : 'Souprava') + (avs.length > 1 ? ' (souprava)' : (avs[0] && avs[0].veh._part === 'auto' ? ' (jen auto)' : ''));
     return { idxs, avs, vehicles, units, totalKg, stops: stops_, label };
   }
 
   // ── Snímky ložného plánu jen pro DANÁ vozidla ─────────────────────
-  // Vrací pole objektů { img2d, img3d, label, idx, kg, L, maxKg, n }
+  // Vrací pole objektů { img2d, img2dRal, img3d, label, idx, kg, L, maxKg, n }
   async function captureLoadingPlanPages(idxs) {
     const pages = [];
     if (typeof assignedVehicles === 'undefined' || !assignedVehicles.length) return pages;
-    let prevIdx, prevView;
-    try { prevIdx = selectedVehicleIdx; prevView = currentView; } catch (e) {}
-    // helper: chvíli počkat, aby DOM dosadil rozměry a three.js vykreslil frame
+    let prevIdx, prevView, prevColorMode;
+    try { prevIdx = selectedVehicleIdx; prevView = currentView; prevColorMode = window._planColorMode || 'stop'; } catch (e) {}
     const wait = (ms) => new Promise(r => setTimeout(r, ms));
     for (const i of idxs) {
       const av = assignedVehicles[i], veh = av.veh || {};
-      let img2d = '', img3d = '';
+      let img2d = '', img2dRal = '', img3d = '';
       try {
-        // 1) 2D půdorys — přepnout na top a získat planCanvas
-        selectedVehicleIdx = i; currentView = 'top'; renderPlanView();
+        // 1) 2D půdorys — pohled shora, barvy dle vykládky
+        selectedVehicleIdx = i; currentView = 'top'; window._planColorMode = 'stop'; renderPlanView();
         await wait(80);
         const cv = document.getElementById('planCanvas');
         try { img2d = cv ? cv.toDataURL('image/png') : ''; } catch (e) { img2d = ''; }
 
-        // 2) 3D pohled — přepnout na 3D, počkat na render, získat WebGL canvas
+        // 2) 2D půdorys — pohled shora, barvy dle RAL barev
+        window._planColorMode = 'ral'; renderPlanView();
+        await wait(80);
+        const cv2 = document.getElementById('planCanvas');
+        try { img2dRal = cv2 ? cv2.toDataURL('image/png') : ''; } catch (e) { img2dRal = ''; }
+
+        // 3) 3D pohled (s aktuálním colorMode = ral)
         currentView = '3d'; renderPlanView();
         await wait(180);
         try {
           if (three && three.renderer) {
-            // ujistit se, že je vykreslen aktuální frame
             try { three.renderer.render(three.scene, three.camera); } catch (e) {}
             img3d = three.renderer.domElement.toDataURL('image/png');
           }
@@ -12994,9 +14738,9 @@ function exportStressCsv() {
       } catch (e) {}
       const kg = (av.units || []).reduce((s, u) => { const t = boxTypeMap.get(u.typeId); return s + (t ? t.kg : 0); }, 0);
       const partTxt = veh._part ? (veh._part === 'auto' ? ' (auto)' : ' (vlek)') : '';
-      pages.push({ img: img2d, img2d, img3d, label: (veh.label || 'Auto') + partTxt, idx: i, kg, L: veh.L, maxKg: veh.maxKg, n: (av.units || []).length });
+      pages.push({ img: img2d, img2d, img2dRal, img3d, label: (veh.label || 'Auto') + partTxt, idx: i, kg, L: veh.L, maxKg: veh.maxKg, n: (av.units || []).length });
     }
-    try { selectedVehicleIdx = prevIdx; currentView = prevView; renderPlanView(); } catch (e) {}
+    try { selectedVehicleIdx = prevIdx; currentView = prevView; window._planColorMode = prevColorMode; renderPlanView(); } catch (e) {}
     return pages;
   }
 
@@ -13200,6 +14944,10 @@ function exportStressCsv() {
             const cid = 'plan2d_' + gi; cidIndex[rigIdx + '-' + page.idx + '-2d'] = cid;
             attachments.push({ cid, mime: 'image/png', base64: page.img2d.split(',')[1] });
           }
+          if (page.img2dRal) {
+            const cid = 'plan2dral_' + gi; cidIndex[rigIdx + '-' + page.idx + '-2dral'] = cid;
+            attachments.push({ cid, mime: 'image/png', base64: page.img2dRal.split(',')[1] });
+          }
           if (page.img3d) {
             const cid = 'plan3d_' + gi; cidIndex[rigIdx + '-' + page.idx + '-3d'] = cid;
             attachments.push({ cid, mime: 'image/png', base64: page.img3d.split(',')[1] });
@@ -13210,33 +14958,38 @@ function exportStressCsv() {
           const routeTxt = 'Bruntál → ' + (d.stops.map((s, i) => (i + 1) + '. ' + esc(s.name)).join(' → ') || '—') + ' → ' + esc(shared.crossName);
           const stopsHTML = d.stops.map((s, i) => {
             const rows = s.lines.map(l =>
-              `<tr><td style="padding:3px 6px;border:1px solid #ddd;">${l.count}×</td><td style="padding:3px 6px;border:1px solid #ddd;">${esc(l.t.name)}</td><td style="padding:3px 6px;border:1px solid #ddd;">${l.t.l}×${l.t.w}×${l.t.h} mm</td><td style="padding:3px 6px;border:1px solid #ddd;text-align:right;">${l.count * l.t.kg} kg</td></tr>`
+              `<tr><td style="padding:3px 6px;border:1px solid #ddd;">${l.count}×</td><td style="padding:3px 6px;border:1px solid #ddd;">${esc(l.t.name)}</td><td style="padding:3px 6px;border:1px solid #ddd;">${l.t.l}×${l.t.w}×${l.t.h} mm</td><td style="padding:3px 6px;border:1px solid #ddd;font-family:'Courier New',monospace;font-size:10px;color:#555;">${esc(l.serial || '—')}</td><td style="padding:3px 6px;border:1px solid #ddd;text-align:right;">${l.count * l.t.kg} kg</td></tr>`
             ).join('');
             const hours = shared.hoursBySi[s.si];
+            const custLine = s.customer ? `<div style="font-size:11px;color:#0d6e4e;font-weight:600;margin-top:2px;">🏢 ${esc(s.customer)}${s.orderNo ? ` <span style="color:#888;font-weight:400;">· obj. č. ${esc(s.orderNo)}</span>` : ''}</div>` : '';
             return `<div style="margin:8px 0;">
               <div style="font-size:12px;font-weight:600;color:#0d6e4e;margin-bottom:4px;">${i + 1}. vykládka — ${esc(s.name)}${hours ? ` <span style="color:#888;font-weight:400;">· prac. doba ${esc(hours)}</span>` : ''}</div>
-              <table style="width:100%;border-collapse:collapse;font-size:11px;font-family:Arial,sans-serif;">
-                <thead><tr style="background:#f5f5f5;"><th style="padding:4px 6px;border:1px solid #ddd;text-align:left;">ks</th><th style="padding:4px 6px;border:1px solid #ddd;text-align:left;">typ bedny</th><th style="padding:4px 6px;border:1px solid #ddd;text-align:left;">rozměr</th><th style="padding:4px 6px;border:1px solid #ddd;text-align:right;">kg Σ</th></tr></thead>
+              ${custLine}
+              <table style="width:100%;border-collapse:collapse;font-size:11px;font-family:Arial,sans-serif;margin-top:4px;">
+                <thead><tr style="background:#f5f5f5;"><th style="padding:4px 6px;border:1px solid #ddd;text-align:left;">ks</th><th style="padding:4px 6px;border:1px solid #ddd;text-align:left;">typ bedny</th><th style="padding:4px 6px;border:1px solid #ddd;text-align:left;">rozměr</th><th style="padding:4px 6px;border:1px solid #ddd;text-align:left;">výr. č.</th><th style="padding:4px 6px;border:1px solid #ddd;text-align:right;">kg Σ</th></tr></thead>
                 <tbody>${rows}</tbody></table></div>`;
           }).join('');
 
           // Snímky vozů této soupravy
           const planImgs = allPages.filter(ap => ap.rigIdx === ri).map(ap => {
             const p = ap.page;
-            const cid2d = cidIndex[ri + '-' + p.idx + '-2d'];
-            const cid3d = cidIndex[ri + '-' + p.idx + '-3d'];
-            return `<div style="margin-top:14px;padding:10px;background:#fafafa;border:1px solid #e0e0e0;border-radius:6px;">
-              <div style="font-size:12px;font-weight:600;margin-bottom:8px;color:#333;">🚛 ${esc(p.label)} — Auto #${p.idx + 1} · délka ${Math.round(p.L / 10) / 100} m · ${p.kg}/${p.maxKg} kg · ${p.n} beden</div>
-              <table style="width:100%;border-collapse:collapse;"><tr>
-                <td style="width:50%;vertical-align:top;padding-right:6px;">
-                  <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Půdorys (shora)</div>
-                  ${cid2d ? `<img src="cid:${cid2d}" style="width:100%;border:1px solid #ccc;border-radius:4px;">` : '<i style="color:#999;">2D náhled nedostupný</i>'}
-                </td>
-                <td style="width:50%;vertical-align:top;padding-left:6px;">
-                  <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">3D pohled</div>
-                  ${cid3d ? `<img src="cid:${cid3d}" style="width:100%;border:1px solid #ccc;border-radius:4px;">` : '<i style="color:#999;">3D náhled nedostupný</i>'}
-                </td>
-              </tr></table>
+            const cid2d    = cidIndex[ri + '-' + p.idx + '-2d'];
+            const cid2dRal = cidIndex[ri + '-' + p.idx + '-2dral'];
+            const cid3d    = cidIndex[ri + '-' + p.idx + '-3d'];
+            return `<div style="margin-top:18px;padding:12px;background:#fafafa;border:1px solid #e0e0e0;border-radius:6px;">
+              <div style="font-size:13px;font-weight:600;margin-bottom:12px;color:#333;">🚛 ${esc(p.label)} — Auto #${p.idx + 1} · délka ${Math.round(p.L / 10) / 100} m · ${p.kg}/${p.maxKg} kg · ${p.n} beden</div>
+              <div style="margin-bottom:14px;">
+                <div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;font-weight:600;">📍 Půdorys podle vykládek</div>
+                ${cid2d ? `<img src="cid:${cid2d}" style="width:100%;border:1px solid #ccc;border-radius:4px;display:block;">` : '<i style="color:#999;">2D náhled nedostupný</i>'}
+              </div>
+              <div style="margin-bottom:14px;">
+                <div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;font-weight:600;">🎨 Půdorys podle RAL barev</div>
+                ${cid2dRal ? `<img src="cid:${cid2dRal}" style="width:100%;border:1px solid #ccc;border-radius:4px;display:block;">` : '<i style="color:#999;">RAL náhled nedostupný</i>'}
+              </div>
+              <div>
+                <div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;font-weight:600;">3D pohled</div>
+                ${cid3d ? `<img src="cid:${cid3d}" style="width:100%;border:1px solid #ccc;border-radius:4px;display:block;">` : '<i style="color:#999;">3D náhled nedostupný</i>'}
+              </div>
             </div>`;
           }).join('');
 
@@ -13347,6 +15100,25 @@ function exportStressCsv() {
         setTimeout(() => URL.revokeObjectURL(url), 1000);
 
         if (window.logAction) window.logAction('akce', '📧 Přepravenka — vygenerován .eml s tělem (HTML + 2D + 3D inline)');
+        recordActivity('email_sent', { rigs: rigData.length, totalKg: rigData.reduce((s, d) => s + d.totalKg, 0) });
+        try {
+          // Auto-save: po odeslání emailu uložit aktuální plán do historie
+          // (pokud už neexistuje záznam — pak ho jen označit jako odeslaný)
+          let hist = loadOrderHistory();
+          let recent = hist.length ? hist[0] : null;
+          // Pokud poslední záznam je víc než 30 sekund starý nebo neexistuje, vytvořit nový
+          const ageMs = recent ? (Date.now() - new Date(recent.date).getTime()) : Infinity;
+          if (!recent || ageMs > 30000) {
+            const firstStop = stops && stops[0] ? stops[0].name : '';
+            const autoName = `📧 ${firstStop ? firstStop.slice(0, 30) : 'Expedice'} — ${new Date().toLocaleDateString('cs-CZ')} ${new Date().toLocaleTimeString('cs-CZ', {hour:'2-digit',minute:'2-digit'})}`;
+            await saveCurrentOrderToHistory(autoName, 'Auto-uložení při odeslání e-mailu');
+            hist = loadOrderHistory();
+          }
+          if (hist.length) {
+            hist[0].emailSent = true; hist[0].emailSentAt = new Date().toISOString();
+            saveOrderHistoryList(hist);
+          }
+        } catch (e) {}
         alert('✓ E-mail s kompletní přepravenkou v těle byl uložen.\n\nOtevři stažený soubor (.eml) dvojklikem — výchozí mailový klient (Outlook / Mail) se otevře s předvyplněnou zprávou. Stačí doplnit příjemce a odeslat.');
       } catch (e) {
         console.error(e); alert('Při generování e-mailu nastala chyba: ' + (e && e.message ? e.message : e));
@@ -13387,6 +15159,23 @@ function exportStressCsv() {
       rigData.forEach(d => { const n = parseInt(d.no, 10); if (n && n > maxNo) maxNo = n; });
       c.lastNo = maxNo; saveCfg(c);
       await generatePDF(shared, rigData);
+      // Activity log + auto-uložení do historie + označit jako "PDF vygenerováno"
+      recordActivity('pdf_generated', { rigs: rigData.length, totalKg: rigData.reduce((s, d) => s + d.totalKg, 0) });
+      try {
+        let hist = loadOrderHistory();
+        let recent = hist.length ? hist[0] : null;
+        const ageMs = recent ? (Date.now() - new Date(recent.date).getTime()) : Infinity;
+        if (!recent || ageMs > 30000) {
+          const firstStop = stops && stops[0] ? stops[0].name : '';
+          const autoName = `📄 ${firstStop ? firstStop.slice(0, 30) : 'Expedice'} — ${new Date().toLocaleDateString('cs-CZ')} ${new Date().toLocaleTimeString('cs-CZ', {hour:'2-digit',minute:'2-digit'})}`;
+          await saveCurrentOrderToHistory(autoName, 'Auto-uložení při generování PDF');
+          hist = loadOrderHistory();
+        }
+        if (hist.length) {
+          hist[0].pdfGenerated = true; hist[0].pdfGeneratedAt = new Date().toISOString();
+          saveOrderHistoryList(hist);
+        }
+      } catch (e) {}
       } catch (e) {
         console.error(e); alert('Při generování PDF nastala chyba: ' + (e && e.message ? e.message : e));
       } finally {
@@ -13417,25 +15206,37 @@ function exportStressCsv() {
       const routeTxt = 'Bruntál → ' + (d.stops.map((s, i) => (i + 1) + '. ' + esc(s.name)).join(' → ') || '—') + ' → ' + esc(sh.crossName);
       const stopsHTML = d.stops.map((s, i) => {
         const rows = s.lines.map(l =>
-          `<tr><td>${l.count}×</td><td>${volClass(l.t)}</td><td>${fmtDims(l.t)}</td><td>${esc(l.t.name)}</td><td class="r">${l.t.kg}</td><td class="r">${l.count * l.t.kg}</td></tr>`
+          `<tr><td>${l.count}×</td><td>${volClass(l.t)}</td><td>${fmtDims(l.t)}</td><td>${esc(l.t.name)}</td><td style="font-family:'Courier New',monospace;font-size:9px;">${esc(l.serial || '—')}</td><td class="r">${l.t.kg}</td><td class="r">${l.count * l.t.kg}</td></tr>`
         ).join('');
         const hours = sh.hoursBySi[s.si], zak = sh.zakBySi[s.si], vyd = sh.vydBySi[s.si];
+        const custLine = s.customer ? `<div style="font-size:10px;color:#0d6e4e;font-weight:600;margin-top:2px;">🏢 ${esc(s.customer)}${s.orderNo ? ` <span style="color:#888;font-weight:400;">· obj. č. ${esc(s.orderNo)}</span>` : ''}</div>` : '';
         return `<div class="stop">
           <div class="stoph"><b>${i + 1}. vykládka</b> — ${esc(s.name)}
             ${hours ? `<span class="mut"> · prac. doba ${esc(hours)}</span>` : ''}
             ${zak ? `<span class="mut"> · zakázka ${esc(zak)}</span>` : ''}
-            ${vyd ? `<span class="mut"> · výdejka ${esc(vyd)}</span>` : ''}</div>
-          <table class="lt"><thead><tr><th>ks</th><th>m³</th><th>rozměr (mm)</th><th>typ bedny</th><th class="r">kg/ks</th><th class="r">kg Σ</th></tr></thead>
+            ${vyd ? `<span class="mut"> · výdejka ${esc(vyd)}</span>` : ''}
+            ${custLine}</div>
+          <table class="lt"><thead><tr><th>ks</th><th>m³</th><th>rozměr (mm)</th><th>typ bedny</th><th>výr. č.</th><th class="r">kg/ks</th><th class="r">kg Σ</th></tr></thead>
           <tbody>${rows}</tbody></table></div>`;
       }).join('');
 
-      // Zachytit 2D půdorys a 3D pohled pro každé vozidlo v této soupravě
+      // Zachytit 2D půdorys (vykládka + RAL) a 3D pohled pro každé vozidlo v této soupravě
       const pages = await captureLoadingPlanPages(d.idxs);
       const planPages = pages.map(p => `<section class="pg planpg">
         <div class="planhd">🚛 ${esc(p.label)} — Auto #${p.idx + 1} <span class="mut">· délka ${Math.round(p.L / 10) / 100} m · ${p.kg}/${p.maxKg} kg · ${p.n} beden</span></div>
-        <div class="planimg-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start;">
-          <div><div class="planimg-label" style="font-size:10px;color:#666;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Půdorys (pohled shora)</div>${p.img2d ? `<img src="${p.img2d}" style="width:100%;border:1px solid #ddd;border-radius:4px;">` : '<i>náhled nedostupný</i>'}</div>
-          <div><div class="planimg-label" style="font-size:10px;color:#666;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">3D pohled</div>${p.img3d ? `<img src="${p.img3d}" style="width:100%;border:1px solid #ddd;border-radius:4px;">` : '<i>3D náhled nedostupný</i>'}</div>
+        <div style="display:flex;flex-direction:column;gap:14px;align-items:stretch;">
+          <div style="width:100%;page-break-inside:avoid;">
+            <div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;font-weight:600;">📍 Půdorys podle vykládek</div>
+            ${p.img2d ? `<img src="${p.img2d}" style="width:100%;border:1px solid #ddd;border-radius:4px;display:block;">` : '<i>náhled nedostupný</i>'}
+          </div>
+          <div style="width:100%;page-break-inside:avoid;">
+            <div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;font-weight:600;">🎨 Půdorys podle RAL barev</div>
+            ${p.img2dRal ? `<img src="${p.img2dRal}" style="width:100%;border:1px solid #ddd;border-radius:4px;display:block;">` : '<i>náhled nedostupný</i>'}
+          </div>
+          <div style="width:100%;page-break-inside:avoid;">
+            <div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;font-weight:600;">3D pohled</div>
+            ${p.img3d ? `<img src="${p.img3d}" style="width:100%;border:1px solid #ddd;border-radius:4px;display:block;">` : '<i>3D náhled nedostupný</i>'}
+          </div>
         </div></section>`).join('');
 
       sections.push(`<section class="pg sheet${ri === 0 ? ' first' : ''}">
@@ -13739,6 +15540,467 @@ document.addEventListener('click', function(e){
   if (!e.target.closest('#devMenuBtn,#devMenuList')) closeDevMenu();
 });
 // ─── Produkční režim: skrýt vývojářské nástroje, zobrazit verzi ───────────
+// ──────────────────────────────────────────────────────────────────────────
+// IP SOLVER — glpk.js — optimální výběr vozidel (vehicle selection)
+//
+// Účel: dostat dokazatelně optimální kombinaci vozidel pro daný náklad
+//       (minimum aut, max využití). Lazy-load — knihovna se stáhne až
+//       na první klik tlačítka „🧮 IP optimalizace".
+//
+// Strategie:
+//   IP řeší pouze VÝBĚR VOZIDEL (kolik aut každého typu) — to je rychlé
+//   i pro stovky beden. Konkrétní rozmístění beden v autě se pak
+//   spočítá stávajícími heuristikami (A–J). Tj. IP doplňuje heuristiky,
+//   nenahrazuje je.
+//
+// Formulace MILP:
+//   minimalizuj  Σ_k (n_k · cost_k)     ... počet aut typu k × cena
+//   omezení:
+//     Σ_k (n_k · maxKg_k)   ≥ totalKg     (auta musí unést)
+//     Σ_k (n_k · maxVol_k)  ≥ totalVol    (auta musí pojmout objem)
+//     Σ_k (n_k · maxLen_k)  ≥ totalLen    (musí stačit délka)
+//     n_k ∈ Z+, ≥ 0
+// ──────────────────────────────────────────────────────────────────────────
+let _glpkLoaded = false;
+let _glpkLoading = null;
+
+function loadGlpk() {
+  if (window.glpk && typeof window.glpk.glp_create_prob === 'function') {
+    _glpkLoaded = true;
+    return Promise.resolve(window.glpk);
+  }
+  if (_glpkLoading) return _glpkLoading;
+  _glpkLoading = fetch('glpk.js')
+    .then(r => {
+      if (!r.ok) throw new Error('HTTP ' + r.status + ' při stahování glpk.js');
+      return r.text();
+    })
+    .then(code => {
+      // glpk.js je IIFE ve tvaru:
+      //   /*! glpk.js ... */
+      //   (function(exports){ ...tělo... }(typeof exports === 'object' && exports || this));
+      // V browseru `this === window`, takže by se vystavily globálně glp_*.
+      // My ale chceme vystavit do `window.glpk` namespace.
+      const m = code.match(/^\s*\/\*![\s\S]*?\*\/\s*\(function\s*\(\s*exports\s*\)\s*\{/);
+      if (!m) throw new Error('Neznámý formát glpk.js (chybí IIFE header)');
+      const bodyStart = m[0].length;
+      const tailIdx = code.lastIndexOf('}(typeof exports');
+      if (tailIdx < 0) throw new Error('Neznámý formát glpk.js (chybí IIFE tail)');
+      const body = code.slice(bodyStart, tailIdx);
+      // Vytvoř namespace a zavolej IIFE tělo s ním jako `exports`
+      const glpk = {};
+      try {
+        (new Function('exports', body))(glpk);
+      } catch (e) {
+        throw new Error('Chyba při inicializaci glpk.js: ' + (e && e.message ? e.message : e));
+      }
+      if (typeof glpk.glp_create_prob !== 'function') {
+        throw new Error('glpk.js načten, ale neexportoval glp_create_prob');
+      }
+      window.glpk = glpk;
+      _glpkLoaded = true;
+      return glpk;
+    })
+    .catch(err => {
+      _glpkLoading = null;        // dovol další pokus
+      throw err;
+    });
+  return _glpkLoading;
+}
+
+// Vrátí seznam doporučených vozidel + obsazenost (heuristic packing zůstane na původním enginu)
+async function solveVehicleSelectionIP() {
+  if (!orders || !orders.length) {
+    alert('Není co optimalizovat — žádné objednávky.'); return null;
+  }
+  // 1) Spočítat agregáty nákladu
+  let totalKg = 0, totalVol = 0, totalLen = 0, totalBoxes = 0;
+  let maxBoxL = 0, maxBoxW = 0, maxBoxH = 0;
+  orders.forEach(o => {
+    (o.addresses || []).forEach(a => {
+      Object.entries(a.boxes || {}).forEach(([tid, qty]) => {
+        const bt = boxTypeMap.get(+tid);
+        if (!bt || !qty) return;
+        const vol = (bt.l * bt.w * bt.h) / 1e9;       // m³
+        totalKg  += qty * (bt.kg || 0);
+        totalVol += qty * vol;
+        totalLen += qty * Math.min(bt.l, bt.w) / 1000; // přibližný footprint po délce
+        totalBoxes += qty;
+        maxBoxL = Math.max(maxBoxL, bt.l, bt.w);
+        maxBoxW = Math.max(maxBoxW, bt.l, bt.w);
+        maxBoxH = Math.max(maxBoxH, bt.h);
+      });
+    });
+  });
+  if (totalBoxes === 0) { alert('V objednávkách nejsou žádné bedny.'); return null; }
+
+  // 2) Vybrat povolená vozidla z VEHICLE_PRESETS přes user check (getSelectedPresets)
+  const presets = (typeof getSelectedPresets === 'function')
+    ? getSelectedPresets()
+    : VEHICLE_PRESETS;
+  if (!presets || !presets.length) { alert('Žádná povolená vozidla.'); return null; }
+
+  // 3) Vyfiltrovat vozidla, do kterých se vejde alespoň největší bedna
+  const candidates = presets.filter(p => {
+    if (p.maxBoxH && p.maxBoxH < maxBoxH) return false;
+    if (p.L && p.L < maxBoxL && p.L < maxBoxW) return false;
+    return true;
+  });
+  if (!candidates.length) { alert('Žádné vozidlo se nedokáže pobrat největší bednu.'); return null; }
+
+  // 4) Načti glpk a postav LP
+  const glpk = await loadGlpk();
+  const lp = glpk.glp_create_prob();
+  glpk.glp_set_obj_dir(lp, glpk.GLP_MIN);
+  glpk.glp_add_cols(lp, candidates.length);
+
+  // proměnné: n_k = počet aut typu k (celočíselné, ≥ 0, ≤ 20)
+  candidates.forEach((v, k) => {
+    glpk.glp_set_col_kind(lp, k + 1, glpk.GLP_IV);
+    glpk.glp_set_col_bnds(lp, k + 1, glpk.GLP_DB, 0, 20);
+    // cílová funkce: minimalizovat počet aut, vážit větší auta o málo víc
+    // (preferujeme méně velkých nad mnoha malými)
+    const sizeCost = 1 + (v.L || 13600) / 100000;
+    glpk.glp_set_obj_coef(lp, k + 1, sizeCost);
+  });
+
+  // 3 omezení: hmotnost ≥ totalKg, objem ≥ totalVol, délka ≥ totalLen
+  // (s 10 % rezervou pro packing inefficiency)
+  const RESERVE = 1.10;
+  glpk.glp_add_rows(lp, 3);
+  glpk.glp_set_row_bnds(lp, 1, glpk.GLP_LO, totalKg  * RESERVE, 0);   // kg
+  glpk.glp_set_row_bnds(lp, 2, glpk.GLP_LO, totalVol * RESERVE, 0);   // m³
+  glpk.glp_set_row_bnds(lp, 3, glpk.GLP_LO, totalLen * 0.95, 0);      // délka — méně přísné
+
+  const ia = [0], ja = [0], ar = [0];
+  candidates.forEach((v, k) => {
+    const volM3 = ((v.L || 0) * (v.W || 0) * (v.H || 0)) / 1e9;
+    const lenM  = (v.L || 0) / 1000;
+    ia.push(1); ja.push(k + 1); ar.push(v.maxKg || 0);
+    ia.push(2); ja.push(k + 1); ar.push(volM3);
+    ia.push(3); ja.push(k + 1); ar.push(lenM);
+  });
+  glpk.glp_load_matrix(lp, ar.length - 1, ia, ja, ar);
+
+  // 5) Solve
+  const t0 = performance.now();
+  // glpk vyžaduje plné SMCP/IOCP objekty (s defaulty), ne plain options
+  glpk.glp_simplex(lp, new glpk.SMCP({ msg_lev: glpk.GLP_MSG_OFF, presolve: glpk.GLP_ON }));
+  glpk.glp_intopt(lp, new glpk.IOCP({ msg_lev: glpk.GLP_MSG_OFF, tm_lim: 5000, presolve: glpk.GLP_ON }));
+  const ms = performance.now() - t0;
+
+  const status = glpk.glp_mip_status(lp);
+  if (status !== glpk.GLP_OPT && status !== glpk.GLP_FEAS) {
+    alert('IP solver nenašel řešení (status ' + status + '). Zkuste stávající heuristiku.');
+    return null;
+  }
+
+  // 6) Sestavit doporučení
+  const recommendation = [];
+  candidates.forEach((v, k) => {
+    const n = Math.round(glpk.glp_mip_col_val(lp, k + 1));
+    for (let i = 0; i < n; i++) recommendation.push(v);
+  });
+
+  return { vehicles: recommendation, ms: ms.toFixed(1), totalKg, totalVol: totalVol.toFixed(2), totalBoxes };
+}
+
+// Spuštění + zobrazení výsledku
+async function runIpOptimization() {
+  const btn = document.getElementById('ipOptBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Načítám IP solver…'; }
+  try {
+    const result = await solveVehicleSelectionIP();
+    if (!result) return;
+    if (btn) btn.textContent = '⏳ Skládám bedny…';
+
+    // Zobraz výsledek
+    const veh = result.vehicles;
+    if (!veh.length) { alert('IP solver doporučil 0 aut — patrně chyba.'); return; }
+
+    const summary = veh.reduce((acc, v) => {
+      acc[v.label] = (acc[v.label] || 0) + 1; return acc;
+    }, {});
+    const summaryTxt = Object.entries(summary).map(([l, n]) => `${n}× ${l}`).join('\n  ');
+
+    const apply = confirm(
+      '🧮 IP solver dokončen za ' + result.ms + ' ms\n\n' +
+      'Náklad:\n' +
+      '  • ' + result.totalBoxes + ' beden\n' +
+      '  • ' + result.totalKg + ' kg\n' +
+      '  • ' + result.totalVol + ' m³\n\n' +
+      'Optimální výběr vozidel:\n  ' + summaryTxt + '\n\n' +
+      'Aplikovat tento výběr a spustit packing?'
+    );
+    if (!apply) return;
+
+    // Zapnout jen tato vozidla a vypnout ostatní
+    window._ipForcedFleet = veh.map(v => ({ ...v }));
+    // Spusť výpočet
+    if (typeof calculate === 'function') calculate();
+    if (window.logAction) window.logAction('akce', '🧮 IP optimalizace — doporučeno ' + veh.length + ' aut');
+  } catch (e) {
+    console.error(e);
+    alert('IP optimalizace selhala: ' + (e && e.message ? e.message : e));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🧮 IP optimalizace'; }
+  }
+}
+
+window.loadGlpk = loadGlpk;
+window.solveVehicleSelectionIP = solveVehicleSelectionIP;
+window.runIpOptimization = runIpOptimization;
+
+// ──────────────────────────────────────────────────────────────────────────
+// IP PACKING REFINEMENT — per-vehicle 2D layout optimization
+//
+// Bere ležeč auto z heuristic packingu a přes glpk přepočítá optimální
+// rozložení beden, aby celková využitá délka byla minimální.
+//
+// Pracuje s VYKLÁDKOVÝMI SEGMENTY: bedny vykládky s nižším indexem
+// (=odbavují se dřív) musí mít vyšší x (blíž k zadním dveřím), aby
+// LIFO byl zachován.
+//
+// Limity: max 22 beden / auto (jinak řešitel doběhne dlouho).
+// ──────────────────────────────────────────────────────────────────────────
+
+async function ipRefineVehicleLayout(av, timeoutMs = 15000) {
+  const units = av.units;
+  const n = units.length;
+  if (n < 3 || n > 22) return null;     // mimo IP rozsah
+  if (!av.veh) return null;
+  const vehL = av.veh.L, vehW = av.veh.W;
+  if (!vehL || !vehW) return null;
+
+  const glpk = await loadGlpk();
+
+  // Posbírej rozměry beden (s aktuální rotací z heuristiky)
+  const dims = units.map(u => {
+    const t = boxTypeMap.get(u.typeId);
+    if (!t) return null;
+    const li = u.rot ? t.w : t.l;
+    const wi = u.rot ? t.l : t.w;
+    return { li, wi, stopIdx: u.stopIdx || 0 };
+  });
+  if (dims.some(d => !d)) return null;
+
+  // Vykládky v autě, seřazené sestupně (vyšší stopIdx = naložen dřív = vpředu)
+  // Při vykládce stopIdx 0 jde první ven → musí být u dveří (vysoké x).
+  // Konvence: x=0 vpředu (u kabiny), x=L vzadu (u dveří).
+  const stopsArr = [...new Set(dims.map(d => d.stopIdx))].sort((a, b) => b - a);
+  const stopRank = {};  // stopIdx → rank (0 = nejvíc vpředu, last = u dveří)
+  stopsArr.forEach((s, i) => { stopRank[s] = i; });
+  const numStops = stopsArr.length;
+
+  // Promenné:
+  // 1..n     : x_i  (real, 0..vehL)
+  // n+1..2n  : y_i  (real, 0..vehW)
+  // 2n+1..2n+nPairs*4 : e_L,e_R,e_U,e_D pro každou dvojici (i<j)
+  // ..+numStops-1 : splity (N-1 dělících čar mezi vykládkami)
+  // poslední 1 : L_used
+  const nPairs = n * (n - 1) / 2;
+  const splitCount = Math.max(0, numStops - 1);
+  const numVars = 2 * n + 4 * nPairs + splitCount + 1;
+  const LUSED = numVars;
+
+  const lp = glpk.glp_create_prob();
+  glpk.glp_set_obj_dir(lp, glpk.GLP_MIN);
+  glpk.glp_add_cols(lp, numVars);
+
+  // x_i a y_i (real)
+  for (let i = 0; i < n; i++) {
+    const d = dims[i];
+    glpk.glp_set_col_kind(lp, i + 1, glpk.GLP_CV);
+    glpk.glp_set_col_bnds(lp, i + 1, glpk.GLP_DB, 0, Math.max(0, vehL - d.li));
+    glpk.glp_set_obj_coef(lp, i + 1, 0);
+    glpk.glp_set_col_kind(lp, n + i + 1, glpk.GLP_CV);
+    glpk.glp_set_col_bnds(lp, n + i + 1, glpk.GLP_DB, 0, Math.max(0, vehW - d.wi));
+    glpk.glp_set_obj_coef(lp, n + i + 1, 0);
+  }
+
+  // Binární e_xx
+  let eBase = 2 * n + 1;
+  const pairs = [];
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      const eL = eBase, eR = eBase + 1, eU = eBase + 2, eD = eBase + 3;
+      for (const v of [eL, eR, eU, eD]) {
+        glpk.glp_set_col_kind(lp, v, glpk.GLP_BV);
+        glpk.glp_set_obj_coef(lp, v, 0);
+      }
+      pairs.push({ i, j, eL, eR, eU, eD });
+      eBase += 4;
+    }
+  }
+
+  // Splity
+  const splitBase = eBase;
+  for (let s = 0; s < splitCount; s++) {
+    glpk.glp_set_col_kind(lp, splitBase + s, glpk.GLP_CV);
+    glpk.glp_set_col_bnds(lp, splitBase + s, glpk.GLP_DB, 0, vehL);
+    glpk.glp_set_obj_coef(lp, splitBase + s, 0);
+  }
+
+  // L_used
+  glpk.glp_set_col_kind(lp, LUSED, glpk.GLP_CV);
+  glpk.glp_set_col_bnds(lp, LUSED, glpk.GLP_DB, 0, vehL);
+  glpk.glp_set_obj_coef(lp, LUSED, 1);
+
+  // Constraints
+  const M = vehL + vehW + 1000;
+  const ia = [0], ja = [0], ar = [0];
+  let rowIdx = 0;
+
+  // Pro každý pair: e_L+e_R+e_U+e_D = 1
+  for (const p of pairs) {
+    rowIdx++;
+    glpk.glp_add_rows(lp, 1);
+    glpk.glp_set_row_bnds(lp, rowIdx, glpk.GLP_FX, 1, 1);
+    ia.push(rowIdx); ja.push(p.eL); ar.push(1);
+    ia.push(rowIdx); ja.push(p.eR); ar.push(1);
+    ia.push(rowIdx); ja.push(p.eU); ar.push(1);
+    ia.push(rowIdx); ja.push(p.eD); ar.push(1);
+
+    // x_i + l_i ≤ x_j + M·(1-e_L)  →  x_i − x_j + M·e_L ≤ M − l_i
+    rowIdx++; glpk.glp_add_rows(lp, 1);
+    glpk.glp_set_row_bnds(lp, rowIdx, glpk.GLP_UP, 0, M - dims[p.i].li);
+    ia.push(rowIdx); ja.push(p.i + 1); ar.push(1);
+    ia.push(rowIdx); ja.push(p.j + 1); ar.push(-1);
+    ia.push(rowIdx); ja.push(p.eL); ar.push(M);
+
+    // x_j + l_j ≤ x_i + M·(1-e_R)
+    rowIdx++; glpk.glp_add_rows(lp, 1);
+    glpk.glp_set_row_bnds(lp, rowIdx, glpk.GLP_UP, 0, M - dims[p.j].li);
+    ia.push(rowIdx); ja.push(p.j + 1); ar.push(1);
+    ia.push(rowIdx); ja.push(p.i + 1); ar.push(-1);
+    ia.push(rowIdx); ja.push(p.eR); ar.push(M);
+
+    // y_i + w_i ≤ y_j + M·(1-e_U)
+    rowIdx++; glpk.glp_add_rows(lp, 1);
+    glpk.glp_set_row_bnds(lp, rowIdx, glpk.GLP_UP, 0, M - dims[p.i].wi);
+    ia.push(rowIdx); ja.push(n + p.i + 1); ar.push(1);
+    ia.push(rowIdx); ja.push(n + p.j + 1); ar.push(-1);
+    ia.push(rowIdx); ja.push(p.eU); ar.push(M);
+
+    // y_j + w_j ≤ y_i + M·(1-e_D)
+    rowIdx++; glpk.glp_add_rows(lp, 1);
+    glpk.glp_set_row_bnds(lp, rowIdx, glpk.GLP_UP, 0, M - dims[p.j].wi);
+    ia.push(rowIdx); ja.push(n + p.j + 1); ar.push(1);
+    ia.push(rowIdx); ja.push(n + p.i + 1); ar.push(-1);
+    ia.push(rowIdx); ja.push(p.eD); ar.push(M);
+  }
+
+  // LIFO segmenty (pokud >1 vykládka v autě)
+  // Bedna s rank=r má x_i v intervalu (splits[r-1], vehL) když r>0
+  //                                    (splits[r], vehL) když r<numStops-1
+  // Konvence: stopsArr seřazený sestupně. stopRank[s]=0 = nejnižší rank = vpředu (nízké x).
+  // Bedna s vyšším rank (= nižší stopIdx = první ven) musí mít x_i ≥ split[rank-1]
+  for (let i = 0; i < n; i++) {
+    const r = stopRank[dims[i].stopIdx];
+    if (r > 0) {
+      // x_i ≥ split[r-1]   →   -x_i + split[r-1] ≤ 0
+      rowIdx++; glpk.glp_add_rows(lp, 1);
+      glpk.glp_set_row_bnds(lp, rowIdx, glpk.GLP_UP, 0, 0);
+      ia.push(rowIdx); ja.push(i + 1); ar.push(-1);
+      ia.push(rowIdx); ja.push(splitBase + r - 1); ar.push(1);
+    }
+    if (r < numStops - 1) {
+      // x_i + l_i ≤ split[r]
+      rowIdx++; glpk.glp_add_rows(lp, 1);
+      glpk.glp_set_row_bnds(lp, rowIdx, glpk.GLP_UP, 0, -dims[i].li);
+      ia.push(rowIdx); ja.push(i + 1); ar.push(1);
+      ia.push(rowIdx); ja.push(splitBase + r); ar.push(-1);
+    }
+  }
+
+  // x_i + l_i ≤ L_used  →  x_i − L_used ≤ −l_i
+  for (let i = 0; i < n; i++) {
+    rowIdx++; glpk.glp_add_rows(lp, 1);
+    glpk.glp_set_row_bnds(lp, rowIdx, glpk.GLP_UP, 0, -dims[i].li);
+    ia.push(rowIdx); ja.push(i + 1); ar.push(1);
+    ia.push(rowIdx); ja.push(LUSED); ar.push(-1);
+  }
+
+  glpk.glp_load_matrix(lp, ar.length - 1, ia, ja, ar);
+
+  // Solve
+  glpk.glp_simplex(lp, new glpk.SMCP({ msg_lev: glpk.GLP_MSG_OFF, presolve: glpk.GLP_ON }));
+  glpk.glp_intopt(lp, new glpk.IOCP({ msg_lev: glpk.GLP_MSG_OFF, tm_lim: timeoutMs, presolve: glpk.GLP_ON, gap: 0.01 }));
+  const status = glpk.glp_mip_status(lp);
+  if (status !== glpk.GLP_OPT && status !== glpk.GLP_FEAS) return null;
+
+  // Načti výsledek do nového layoutu
+  const newUnits = units.map((u, i) => ({
+    ...u,
+    x: glpk.glp_mip_col_val(lp, i + 1),
+    y: glpk.glp_mip_col_val(lp, n + i + 1)
+  }));
+  const usedLen = glpk.glp_mip_col_val(lp, LUSED);
+
+  return { units: newUnits, usedLen, optimal: (status === glpk.GLP_OPT) };
+}
+
+// ── Spuštění IP refinement pro všechna vhodná auta v plánu ─────────────
+async function runIpRefinement() {
+  const btn = document.getElementById('ipRefineBtn');
+  if (!assignedVehicles || !assignedVehicles.length) {
+    alert('Není co optimalizovat — nejdřív spočítej plán tlačítkem „⚡ Vypočítat".');
+    return;
+  }
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Načítám solver…'; }
+  try {
+    await loadGlpk();
+
+    let improved = 0, skipped = 0, tried = 0;
+    const startTotal = performance.now();
+    for (let k = 0; k < assignedVehicles.length; k++) {
+      const av = assignedVehicles[k];
+      if (av.units.length < 3 || av.units.length > 22) { skipped++; continue; }
+      tried++;
+      if (btn) btn.textContent = `⏳ Auto ${k + 1}/${assignedVehicles.length} (${av.units.length} bedny)…`;
+      await new Promise(r => setTimeout(r, 10));
+      try {
+        const res = await ipRefineVehicleLayout(av, 15000);
+        if (!res) { skipped++; continue; }
+        // Porovnat s heuristic - kolik využité délky teď?
+        const heurUsedLen = av.units.reduce((m, u) => {
+          const t = boxTypeMap.get(u.typeId);
+          if (!t) return m;
+          const li = u.rot ? t.w : t.l;
+          return Math.max(m, (u.x || 0) + li);
+        }, 0);
+        // Aplikuj jen pokud IP našel kratší využití (min 50mm zlepšení)
+        if (res.usedLen < heurUsedLen - 50) {
+          av.units = res.units;
+          improved++;
+        } else {
+          skipped++;
+        }
+      } catch (e) {
+        console.warn('IP refinement vehicle', k, 'failed:', e);
+        skipped++;
+      }
+    }
+    const totalMs = (performance.now() - startTotal).toFixed(0);
+    try { renderPlanView(); renderResults && renderResults(); } catch (e) {}
+    alert('🎯 IP doladění layoutu dokončeno\n\n' +
+          'Aut testováno: ' + tried + '\n' +
+          'Zlepšeno: ' + improved + '\n' +
+          'Beze změny: ' + skipped + '\n' +
+          'Celkový čas: ' + (totalMs / 1000).toFixed(1) + ' s');
+    if (window.logAction) window.logAction('akce', '🎯 IP refinement — zlepšeno ' + improved + ' aut z ' + tried);
+  } catch (e) {
+    console.error(e);
+    alert('IP doladění selhalo: ' + (e && e.message ? e.message : e));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🎯 IP doladění layoutu'; }
+  }
+}
+
+window.ipRefineVehicleLayout = ipRefineVehicleLayout;
+window.runIpRefinement = runIpRefinement;
+
+// ──────────────────────────────────────────────────────────────────────────
 (function applyProductionMode() {
   if (typeof IS_PRODUCTION === 'undefined' || !IS_PRODUCTION) return;
   // schovat dev menu (testy/stress/trenér/log)
