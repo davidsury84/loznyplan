@@ -7,6 +7,13 @@
  * - Sdílené API: /api/shared (boxTypes + fleet napříč uživateli)
  *   → ukládá se do souboru DATA_DIR/shared.json (Railway Volume, jinak ./data)
  *   → pokud volume není připojený, data se uchovají do restartu kontejneru
+ * - SSO z intranetu: s nastaveným INTRANET_SSO_SECRET pouští jen přihlášené
+ *   (intranet modul „Ložný plán" → /loznyplan-app → redirect sem s ?sso=token)
+ *
+ * Environment:
+ *   INTRANET_SSO_SECRET — sdílené tajemství s intranetem (= SSO_SHARED_SECRET intranetu);
+ *                         bez něj běží aplikace otevřeně (lokální vývoj)
+ *   INTRANET_URL        — adresa intranetu pro odkaz „přihlásit se" (výchozí https://intranet.elkoplast.cz)
  */
 
 const express = require('express');
@@ -118,7 +125,7 @@ function sendPrecompressed(req, res, data) {
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.setHeader('Vary', 'Accept-Encoding');
   res.setHeader('ETag', data.etag);
-  res.setHeader('Cache-Control', 'public, max-age=300, must-revalidate');
+  res.setHeader('Cache-Control', 'private, max-age=300, must-revalidate');
   if (/\bbr\b/.test(acceptEncoding)) {
     res.setHeader('Content-Encoding', 'br');
     res.setHeader('Content-Length', data.brotli.length);
@@ -141,6 +148,58 @@ app.use((req, res, next) => {
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   next();
+});
+
+// ══════════════════════════════════════════════════════════════════════
+//  SSO z intranetu (vzor prekladiste-kalkulacka): intranet přesměruje
+//  s ?sso=<token>, token = b64url(JSON{email,name,exp}) + "." + HMAC-SHA256("sso:"+data)[0..32].
+//  Server token ověří, nastaví vlastní session cookie a dál pouští jen přihlášené.
+//  Bez INTRANET_SSO_SECRET běží aplikace otevřeně (lokální vývoj).
+// ══════════════════════════════════════════════════════════════════════
+const SSO_SECRET = (process.env.INTRANET_SSO_SECRET || '').trim();
+const INTRANET_URL = (process.env.INTRANET_URL || 'https://intranet.elkoplast.cz').replace(/\/$/, '');
+const SESSION_MS = 12 * 3600 * 1000; // vlastní session po ověření tokenu (12 h)
+
+function b64urlDecode(s) { s = String(s).replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; return Buffer.from(s, 'base64').toString('utf8'); }
+function b64url(buf) { return Buffer.from(buf).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+function ssoHmac(prefix, data) { return crypto.createHmac('sha256', SSO_SECRET).update(prefix + data).digest('hex').slice(0, 32); }
+// Ověří podepsaný token/cookie (prefix "sso:" pro token z intranetu, "emp:" pro naši session).
+function ssoVerify(str, prefix) {
+  if (!str) return null;
+  const i = str.lastIndexOf('.'); if (i < 0) return null;
+  const data = str.slice(0, i), sig = str.slice(i + 1);
+  let ok = false;
+  try { ok = crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(ssoHmac(prefix, data))); } catch (_) { return null; }
+  if (!ok) return null;
+  try { const p = JSON.parse(b64urlDecode(data)); return (p && p.email && (!p.exp || Date.now() < p.exp)) ? p : null; } catch (_) { return null; }
+}
+function sessionSign(emp) { const data = b64url(JSON.stringify({ email: emp.email, name: emp.name || emp.email, exp: Date.now() + SESSION_MS })); return data + '.' + ssoHmac('emp:', data); }
+function cookieVal(req, name) { const m = (req.headers.cookie || '').match(new RegExp('(?:^|;\\s*)' + name + '=([^;]+)')); return m ? decodeURIComponent(m[1]) : ''; }
+
+function loginPage() {
+  return '<!doctype html><html lang="cs"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+    + '<title>Ložný plán — přihlášení</title><style>body{margin:0;font-family:system-ui,sans-serif;background:#eef1ec;color:#0f1512;display:grid;place-items:center;min-height:100vh}'
+    + '.c{max-width:460px;text-align:center;background:#fff;border:1px solid #e3e7e0;border-radius:16px;padding:34px 30px;box-shadow:0 10px 30px rgba(15,21,18,.07)}'
+    + 'h1{font-size:20px;margin:0 0 8px}p{color:#5b635c;margin:0 0 18px;line-height:1.55}'
+    + 'a{display:inline-block;background:linear-gradient(135deg,#15ab57,#0a6b34);color:#fff;text-decoration:none;padding:12px 24px;border-radius:10px;font-weight:600}</style></head>'
+    + '<body><div class="c"><h1>🚚 Ložný plán</h1><p>Aplikace je dostupná zaměstnancům ELKOPLAST přes intranet.</p>'
+    + '<a href="' + INTRANET_URL + '/loznyplan-app" target="_top">Přihlásit se přes intranet →</a></div></body></html>';
+}
+
+// Závora: platný ?sso= token z intranetu → vlastní session cookie; jinak platná cookie; jinak přihlášení.
+app.use((req, res, next) => {
+  if (!SSO_SECRET) return next();                 // SSO vypnuté → otevřený provoz (vývoj)
+  if (req.path === '/health') return next();      // healthcheck pro Railway vždy
+  const tok = ssoVerify(String(req.query.sso || ''), 'sso:');
+  if (tok) {
+    // SameSite=None kvůli iframu v intranetu (cross-site); vyžaduje Secure (Railway běží na HTTPS).
+    res.setHeader('Set-Cookie', 'lp_emp=' + encodeURIComponent(sessionSign(tok)) + '; HttpOnly; Path=/; Max-Age=' + Math.floor(SESSION_MS / 1000) + '; SameSite=None; Secure');
+    req.employee = { email: tok.email, name: tok.name || tok.email };
+    return next();
+  }
+  const sess = ssoVerify(cookieVal(req, 'lp_emp'), 'emp:');
+  if (sess) { req.employee = { email: sess.email, name: sess.name }; return next(); }
+  res.status(401).type('html; charset=utf-8').send(loginPage());
 });
 
 // ── API: sdílené úložiště pro boxTypes/fleet ───────────────────────────
@@ -230,7 +289,7 @@ app.use(express.static(__dirname, {
   maxAge: '1h',
   setHeaders: (res, filePath) => {
     if (filePath.endsWith('.html')) {
-      res.setHeader('Cache-Control', 'public, max-age=300, must-revalidate');
+      res.setHeader('Cache-Control', 'private, max-age=300, must-revalidate');
     } else if (/\.(js|css|woff2?|ttf|png|svg|jpg|jpeg|webp)$/.test(filePath)) {
       res.setHeader('Cache-Control', 'public, max-age=3600');
     }
