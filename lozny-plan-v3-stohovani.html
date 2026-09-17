@@ -1417,17 +1417,15 @@ const ELKOPLAST_LOGO_DATAURI = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAP
 const IS_PRODUCTION = false;
 const APP_VERSION = '1.0.0';
 
-// Globální HTML escape — používá ho mnoho modal funkcí (profile, history)
-// Funkce definované jako 'function esc(...)' jsou v top-level scope a stávají
-// se vlastnostmi `window`. Vnořené `const esc` v jiných funkcích ho mohou shadowovat,
-// to je v pořádku — vnitřní const přebije globální v rámci své funkce.
-if (typeof window.esc === 'undefined') {
-  window.esc = function (s) {
-    return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
-      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  };
-}
-function esc(s) { return window.esc(s); }
+// Globální HTML escape — používá ho mnoho modal funkcí (profile, history).
+// POZOR na past: top-level `function esc()` je táž vlastnost window jako `window.esc`,
+// takže dřívější wrapper `function esc(s){return window.esc(s)}` volal sám sebe
+// (guard `typeof window.esc === 'undefined'` viděl hoistnutou deklaraci → přeskočil).
+// Proto přímé nepodmíněné přiřazení; vnořené `const esc` ho smí shadowovat.
+window.esc = function (s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+};
 
 // ──────────────────────────────────────────────────────────────────────────
 // HISTORIE ZAKÁZEK — lokální databáze v prohlížeči
@@ -11115,12 +11113,216 @@ document.getElementById('xlsxInput').addEventListener('change', (e) => {
   e.target.value = '';
 });
 
-document.getElementById('addOrderBtn').addEventListener('click', () => {
-  const idx = orders.length;
-  orders.push({ id: nextId++, orderNo: '', customer: '', name: `Objednávka ${idx + 1}`, color: ORDER_COLORS[idx % ORDER_COLORS.length], addresses: [{ id: nextId++, address: '', boxes: {}, serials: {}, rals: {} }] });
-  stops = [];
-  renderOrders();
-});
+// ══════════════════════════════════════════════════════
+// NOVÁ OBJEDNÁVKA — velké vyskakovací okno
+// Vlevo úsporný katalog výrobků (kompaktní texty, hledání),
+// vpravo hlavička objednávky + vybrané položky (qty / RAL / výr. č.).
+// Stejný výrobek lze přidat vícekrát → uloží se jako dávky (batches).
+// ══════════════════════════════════════════════════════
+function openNewOrderModal() {
+  document.getElementById('newOrderModal')?.remove();
+
+  // POZOR: globální esc() je rekurzivní past (window.esc) — lokální kopie jako jinde
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const lines = [];   // { bt, qty, ral, serials }
+
+  const ov = document.createElement('div');
+  ov.id = 'newOrderModal';
+  ov.className = 'modal-overlay open';
+
+  const dlg = document.createElement('div');
+  dlg.style.cssText = `background:var(--panel);border:1px solid var(--border);border-radius:12px;
+    width:min(1520px,96vw);height:min(920px,92vh);display:flex;flex-direction:column;
+    box-shadow:0 18px 60px rgba(0,0,0,0.65);overflow:hidden;`;
+
+  const INP = `background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;
+    padding:8px 10px;font-size:13px;font-family:'IBM Plex Sans',sans-serif;outline:none;box-sizing:border-box;width:100%;`;
+  const LBL = `display:flex;flex-direction:column;gap:4px;font-size:10px;letter-spacing:0.5px;
+    text-transform:uppercase;color:var(--muted);font-family:'IBM Plex Mono',monospace;`;
+
+  dlg.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--border);flex-shrink:0;">
+      <h2 style="margin:0;font-size:17px;color:var(--accent);">➕ Nová objednávka</h2>
+      <span style="font-size:11px;color:var(--muted);">klikni na výrobek vlevo → přidá se do objednávky · stejný výrobek podruhé = další dávka (jiné RAL / výr. č.)</span>
+      <button id="noClose" title="Zavřít (Esc)" style="margin-left:auto;background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1;">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:12px 20px;border-bottom:1px solid var(--border);flex-shrink:0;">
+      <label style="${LBL}">Název objednávky<input id="noName" placeholder="např. Schneider" style="${INP}"></label>
+      <label style="${LBL}">Odběratel (firma)<input id="noCustomer" placeholder="název firmy" style="${INP}"></label>
+      <label style="${LBL}">Číslo objednávky<input id="noOrderNo" placeholder="např. 2026-0451" style="${INP}"></label>
+      <label style="${LBL}">Adresa vykládky<input id="noAddress" placeholder="ulice, město, země" style="${INP}"></label>
+    </div>
+    <div style="display:flex;flex:1;min-height:0;">
+      <div style="flex:1.15;display:flex;flex-direction:column;border-right:1px solid var(--border);min-width:0;">
+        <div style="padding:10px 16px 8px;flex-shrink:0;">
+          <input id="noSearch" placeholder="🔍 Hledat výrobek (název, rozměry)…" style="${INP}font-size:14px;padding:10px 12px;">
+        </div>
+        <div id="noCatalog" style="flex:1;overflow-y:auto;padding:0 16px 12px;"></div>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;min-width:0;">
+        <div style="padding:10px 16px 6px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-family:'IBM Plex Mono',monospace;flex-shrink:0;">Položky objednávky</div>
+        <div id="noLines" style="flex:1;overflow-y:auto;padding:0 16px 12px;"></div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;padding:12px 20px;border-top:1px solid var(--border);flex-shrink:0;">
+      <span id="noSummary" style="font-size:12px;color:var(--muted);font-family:'IBM Plex Mono',monospace;"></span>
+      <button id="noCancel" style="margin-left:auto;padding:10px 22px;border-radius:8px;border:1px solid var(--border);background:none;color:var(--muted);font-size:13px;cursor:pointer;">Zrušit</button>
+      <button id="noSave" style="padding:10px 26px;border-radius:8px;border:none;background:var(--accent);color:#000;font-size:14px;font-weight:700;cursor:pointer;">✓ Založit objednávku</button>
+    </div>`;
+  ov.appendChild(dlg);
+  document.body.appendChild(ov);
+
+  const catalogEl = dlg.querySelector('#noCatalog');
+  const linesEl   = dlg.querySelector('#noLines');
+  const summaryEl = dlg.querySelector('#noSummary');
+
+  // ── Katalog: kompaktní mřížka výrobků (úsporné texty, plný název v tooltipu) ──
+  function renderCatalog(filter) {
+    const f = (filter || '').toLowerCase().trim();
+    const list = boxTypes.filter(bt => {
+      if (!f) return true;
+      return `${bt.name} ${bt.l}x${bt.w}x${bt.h} ${bt.l}×${bt.w}×${bt.h}`.toLowerCase().includes(f);
+    }).slice().sort((a, b) => a.name.localeCompare(b.name, 'cs'));
+    catalogEl.innerHTML = '';
+    if (!list.length) {
+      catalogEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">Nic nenalezeno</div>';
+      return;
+    }
+    const grid = document.createElement('div');
+    grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:4px;';
+    list.forEach(bt => {
+      const row = document.createElement('div');
+      row.title = `${bt.name}\n${bt.l}×${bt.w}×${bt.h} mm · ${bt.kg || '?'} kg — klikni pro přidání`;
+      row.style.cssText = `display:flex;align-items:center;gap:7px;padding:6px 8px;border:1px solid var(--border);
+        border-radius:6px;cursor:pointer;transition:background 0.1s,border-color 0.1s;min-width:0;`;
+      row.innerHTML = `<span style="width:10px;height:10px;border-radius:2px;background:${bt.color};flex-shrink:0;"></span>
+        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11.5px;font-family:'IBM Plex Mono',monospace;color:var(--text);">${esc(bt.name)}</span>
+        <span style="flex-shrink:0;font-size:9.5px;color:var(--muted);font-family:'IBM Plex Mono',monospace;">${bt.l}×${bt.w}×${bt.h}</span>`;
+      row.addEventListener('mouseenter', () => { row.style.background = 'rgba(255,255,255,0.05)'; row.style.borderColor = bt.color; });
+      row.addEventListener('mouseleave', () => { row.style.background = ''; row.style.borderColor = 'var(--border)'; });
+      row.addEventListener('click', () => { lines.push({ bt, qty: 1, ral: null, serials: '' }); renderLines(); });
+      grid.appendChild(row);
+    });
+    catalogEl.appendChild(grid);
+  }
+
+  // ── Vybrané položky ──
+  function renderLines() {
+    linesEl.innerHTML = '';
+    if (!lines.length) {
+      linesEl.innerHTML = '<div style="padding:26px 10px;text-align:center;color:var(--muted);font-size:12px;">Zatím žádné položky — vyber výrobky z katalogu vlevo.</div>';
+    }
+    // pořadí dávek v rámci typu (pro štítek #n)
+    const batchNo = {};
+    lines.forEach((ln, i) => {
+      const bi = (batchNo[ln.bt.id] = (batchNo[ln.bt.id] || 0) + 1);
+      const multi = lines.filter(l => l.bt.id === ln.bt.id).length > 1;
+      const row = document.createElement('div');
+      row.style.cssText = `display:flex;align-items:center;gap:7px;padding:7px 9px;margin-bottom:5px;
+        background:${ln.bt.color}14;border:1px solid ${ln.bt.color}55;border-radius:7px;min-width:0;`;
+      const nameSpan = `<span title="${esc(ln.bt.name)}" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11.5px;font-family:'IBM Plex Mono',monospace;color:var(--text);">${multi ? `<span style="color:var(--muted);font-size:9.5px;">#${bi}</span> ` : ''}${esc(ln.bt.name)}</span>`;
+      row.innerHTML = `<span style="width:10px;height:10px;border-radius:2px;background:${ln.bt.color};flex-shrink:0;"></span>${nameSpan}`;
+
+      const qtyInp = document.createElement('input');
+      qtyInp.type = 'number'; qtyInp.min = '1'; qtyInp.value = ln.qty;
+      qtyInp.title = 'Počet kusů';
+      qtyInp.style.cssText = `width:58px;background:var(--bg);border:1px solid var(--border);border-radius:5px;
+        color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:13px;padding:5px 4px;text-align:center;flex-shrink:0;`;
+      qtyInp.addEventListener('input', () => { ln.qty = +qtyInp.value || 0; renderSummary(); });
+
+      const unit = document.createElement('span');
+      unit.textContent = 'ks';
+      unit.style.cssText = 'color:var(--muted);font-size:10px;flex-shrink:0;';
+
+      const ralBtn = document.createElement('button');
+      ralBtn.type = 'button';
+      ralBtn.title = ln.ral ? `RAL: ${ln.ral.ral} — klikni pro změnu` : 'Vybrat RAL barvu (paleta)';
+      ralBtn.style.cssText = `width:28px;height:28px;border-radius:5px;cursor:pointer;border:1px solid var(--border);
+        background:${ln.ral ? ln.ral.hex : 'transparent'};font-size:11px;color:${ln.ral ? '#fff' : 'var(--muted)'};
+        display:flex;align-items:center;justify-content:center;text-shadow:0 0 2px rgba(0,0,0,0.8);flex-shrink:0;`;
+      ralBtn.innerHTML = ln.ral ? '✓' : '🎨';
+      ralBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const proxy = { rals: {} };
+        if (ln.ral) proxy.rals[ln.bt.id] = ln.ral;
+        openRalPicker(ralBtn, proxy, ln.bt.id, () => { ln.ral = (proxy.rals && proxy.rals[ln.bt.id]) || null; renderLines(); });
+      });
+
+      const snInp = document.createElement('input');
+      snInp.type = 'text';
+      snInp.placeholder = 'výr. č.';
+      snInp.title = 'Výrobní čísla / SN — volitelně (např. SN001-SN025)';
+      snInp.value = ln.serials;
+      snInp.style.cssText = `width:110px;background:var(--bg);border:1px solid var(--border);border-radius:5px;
+        color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:11px;padding:5px 7px;flex-shrink:0;`;
+      snInp.addEventListener('input', () => { ln.serials = snInp.value; });
+
+      const del = document.createElement('button');
+      del.innerHTML = '×';
+      del.title = 'Odebrat položku';
+      del.style.cssText = 'background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:0 2px;line-height:1;flex-shrink:0;';
+      del.addEventListener('click', () => { lines.splice(i, 1); renderLines(); });
+
+      row.appendChild(qtyInp); row.appendChild(unit); row.appendChild(ralBtn); row.appendChild(snInp); row.appendChild(del);
+      linesEl.appendChild(row);
+    });
+    renderSummary();
+  }
+  function renderSummary() {
+    const total = lines.reduce((s, l) => s + (+l.qty || 0), 0);
+    const kg = lines.reduce((s, l) => s + (+l.qty || 0) * (l.bt.kg || 0), 0);
+    summaryEl.textContent = lines.length ? `${lines.length} položek · ${total} ks · ${kg} kg` : '';
+  }
+
+  // ── Zavření / uložení ──
+  const close = () => { document.removeEventListener('keydown', onKey); ov.remove(); };
+  const onKey = (e) => { if (e.key === 'Escape') { if (!lines.length || confirm('Zavřít bez založení objednávky?')) close(); } };
+  document.addEventListener('keydown', onKey);
+  dlg.querySelector('#noClose').addEventListener('click', () => { if (!lines.length || confirm('Zavřít bez založení objednávky?')) close(); });
+  dlg.querySelector('#noCancel').addEventListener('click', () => { if (!lines.length || confirm('Zavřít bez založení objednávky?')) close(); });
+
+  dlg.querySelector('#noSave').addEventListener('click', () => {
+    const idx = orders.length;
+    // Seskupit řádky podle typu: 1 řádek → přímý zápis, víc řádků → dávky
+    const byType = {};
+    lines.filter(l => (+l.qty || 0) > 0).forEach(l => (byType[l.bt.id] = byType[l.bt.id] || []).push(l));
+    const boxes = {}, rals = {}, serials = {}, batches = {};
+    for (const tid in byType) {
+      const ls = byType[tid];
+      boxes[tid] = ls.reduce((s, l) => s + (+l.qty || 0), 0);
+      if (ls.length > 1) batches[tid] = ls.map(l => ({ qty: +l.qty || 0, ral: l.ral || null, serials: l.serials || '' }));
+      if (ls[0].ral) rals[tid] = ls[0].ral;
+      const sn = ls.map(l => (l.serials || '').trim()).filter(Boolean).join(', ');
+      if (sn) serials[tid] = sn;
+    }
+    const addrObj = { id: nextId++, address: dlg.querySelector('#noAddress').value.trim(), boxes, serials, rals };
+    if (Object.keys(batches).length) addrObj.batches = batches;
+    orders.push({
+      id: nextId++,
+      orderNo:  dlg.querySelector('#noOrderNo').value.trim(),
+      customer: dlg.querySelector('#noCustomer').value.trim(),
+      name:     dlg.querySelector('#noName').value.trim() || `Objednávka ${idx + 1}`,
+      color: ORDER_COLORS[idx % ORDER_COLORS.length],
+      addresses: [addrObj],
+    });
+    stops = []; assignedVehicles = [];
+    const btn = document.getElementById('calcBtn');
+    if (btn) { btn.textContent = '⚡ Přepočítat ložné plány ⚠'; btn.style.background = 'var(--orange)'; }
+    close();
+    renderOrders();
+    try { saveWorkspace(); } catch (e) {}
+    if (window.logAction) window.logAction('akce', `➕ Nová objednávka „${orders[orders.length - 1].name}" (${Object.keys(boxes).length} typů)`);
+  });
+
+  renderCatalog('');
+  renderLines();
+  let _t = null;
+  dlg.querySelector('#noSearch').addEventListener('input', (e) => { clearTimeout(_t); _t = setTimeout(() => renderCatalog(e.target.value), 100); });
+  setTimeout(() => dlg.querySelector('#noName').focus(), 50);
+}
+window.openNewOrderModal = openNewOrderModal;
+
+document.getElementById('addOrderBtn').addEventListener('click', openNewOrderModal);
 
 
 
