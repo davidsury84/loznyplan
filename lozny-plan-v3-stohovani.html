@@ -1389,7 +1389,19 @@ let boxTypes = [
 
 // ── Rychlý O(1) lookup místo O(n) boxTypes.find() ────────────────
 let boxTypeMap = new Map();
-function rebuildBoxTypeMap() { boxTypeMap = new Map(boxTypes.map(t => [t.id, t])); }
+// Duplicitní ID typů beden (historická chyba merge podle rozměrů) → pozdějším
+// výskytům přidělí nové unikátní ID. Reference v objednávkách zůstávají na prvním typu.
+function dedupeBoxTypeIds(list) {
+  const seen = new Set(); let maxId = 0, changed = 0;
+  for (const t of list) maxId = Math.max(maxId, +t.id || 0);
+  for (const t of list) {
+    if (seen.has(+t.id)) { t.id = ++maxId; changed++; }
+    else seen.add(+t.id);
+  }
+  if (changed) console.warn(`⚠ dedupeBoxTypeIds: ${changed}× duplicitní ID typu bedny — přiděleno nové ID`);
+  return changed;
+}
+function rebuildBoxTypeMap() { dedupeBoxTypeIds(boxTypes); boxTypeMap = new Map(boxTypes.map(t => [t.id, t])); }
 
 
 // orders: [ { id, name, color, addresses: [ { id, address, boxes:{typeId:qty} } ] } ]
@@ -2183,6 +2195,7 @@ function flattenStops() {
         orderNo:  order.orderNo  || '',                // číslo objednávky
         serials:  { ...(addr.serials || {}) },         // výrobní čísla per typeId
         rals:     { ...(addr.rals || {}) },            // RAL barvy per typeId
+        batches:  addr.batches ? JSON.parse(JSON.stringify(addr.batches)) : undefined, // dávky per typeId (qty/ral/serials)
         boxes: { ...addr.boxes },
       });
     });
@@ -4613,11 +4626,50 @@ function renderOrders() {
       function rebuildChips() {
         chipsWrap.innerHTML = '';
 
-        // Chip pro každý typ s qty > 0
+        // Chip pro každý typ s qty > 0. Typ může mít víc „dávek" — stejná bedna,
+        // jiné RAL / výrobní čísla / počet: addr.batches[typeId] = [{qty, ral, serials}].
+        // Bez dávek zůstává původní model (addr.boxes/rals/serials přímo).
         boxTypes.forEach(bt => {
           const qty = addr.boxes[bt.id] || 0;
-          if (qty === 0) return;
+          if (qty === 0) { if (addr.batches && addr.batches[bt.id]) delete addr.batches[bt.id]; return; }
 
+          const batchList = (addr.batches && addr.batches[bt.id] && addr.batches[bt.id].length)
+            ? addr.batches[bt.id] : null;
+          // Jednotné řádky: bez dávek jeden virtuální řádek nad addr.boxes/rals/serials
+          const rows = batchList || [{ qty, ral: (addr.rals && addr.rals[bt.id]) || null, serials: (addr.serials && addr.serials[bt.id]) || '' }];
+
+          const invalidate = () => {
+            stops = []; assignedVehicles = [];
+            const btn = document.getElementById('calcBtn');
+            if (btn) { btn.textContent = '⚡ Přepočítat ložné plány ⚠'; btn.style.background = 'var(--orange)'; }
+          };
+          // Součet dávek → addr.boxes + zrcadlení do rals/serials (kompatibilita se zbytkem appky)
+          const syncBatches = () => {
+            const list = addr.batches && addr.batches[bt.id];
+            if (!list || !list.length) return;
+            addr.boxes[bt.id] = list.reduce((s, b) => s + (+b.qty || 0), 0);
+            if (!addr.rals) addr.rals = {};
+            if (list[0].ral) addr.rals[bt.id] = list[0].ral; else delete addr.rals[bt.id];
+            if (!addr.serials) addr.serials = {};
+            addr.serials[bt.id] = list.map(b => (b.serials || '').trim()).filter(Boolean).join(', ');
+          };
+          // Smazání dávky; při 1 zbylé kolaps zpět na jednoduchý model
+          const removeBatch = (bi) => {
+            const list = addr.batches[bt.id];
+            list.splice(bi, 1);
+            if (list.length <= 1) {
+              const b = list[0];
+              delete addr.batches[bt.id];
+              addr.boxes[bt.id] = b ? (+b.qty || 0) : 0;
+              if (!addr.rals) addr.rals = {};
+              if (b && b.ral) addr.rals[bt.id] = b.ral; else delete addr.rals[bt.id];
+              if (!addr.serials) addr.serials = {};
+              if (b && b.serials) addr.serials[bt.id] = b.serials; else delete addr.serials[bt.id];
+            } else syncBatches();
+            invalidate(); rebuildChips();
+          };
+
+          rows.forEach((batch, bi) => {
           const chip = document.createElement('div');
           chip.style.cssText = `display:flex;align-items:center;gap:5px;padding:4px 8px 4px 6px;
             background:${bt.color}22;border:1px solid ${bt.color}66;border-radius:6px;
@@ -4632,16 +4684,15 @@ function renderOrders() {
           nameLbl.title = bt.name;
 
           const inp = document.createElement('input');
-          inp.type = 'number'; inp.min = '0'; inp.value = qty;
+          inp.type = 'number'; inp.min = '0'; inp.value = batchList ? (batch.qty || 0) : qty;
           inp.style.cssText = `width:44px;background:var(--bg);border:1px solid var(--border);
             border-radius:4px;color:var(--text);font-family:'IBM Plex Mono',monospace;
             font-size:11px;padding:2px 4px;text-align:center;`;
           inp.addEventListener('input', () => {
+            if (batchList) { batch.qty = +inp.value || 0; syncBatches(); invalidate(); return; }
             addr.boxes[bt.id] = +inp.value || 0;
-            stops = []; assignedVehicles = [];
+            invalidate();
             if (+inp.value === 0) rebuildChips();
-            const btn = document.getElementById('calcBtn');
-            if (btn) { btn.textContent = '⚡ Přepočítat ložné plány ⚠'; btn.style.background = 'var(--orange)'; }
           });
 
           const unit = document.createElement('span');
@@ -4651,7 +4702,7 @@ function renderOrders() {
           // RAL barva — malé tlačítko se čtverečkem aktuální barvy (klik = paleta)
           const ralBtn = document.createElement('button');
           ralBtn.type = 'button';
-          const currentRal = (addr.rals && addr.rals[bt.id]) || null;
+          const currentRal = batchList ? (batch.ral || null) : ((addr.rals && addr.rals[bt.id]) || null);
           ralBtn.title = currentRal
             ? `RAL: ${currentRal.ral} — klikni pro změnu`
             : 'Vybrat RAL barvu (paleta)';
@@ -4662,7 +4713,17 @@ function renderOrders() {
           ralBtn.innerHTML = currentRal ? '✓' : '🎨';
           ralBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            openRalPicker(ralBtn, addr, bt.id, () => rebuildChips());
+            if (batchList) {
+              // Picker píše do proxy objektu → po výběru přeneseme do dávky
+              const proxy = { rals: {} };
+              if (batch.ral) proxy.rals[bt.id] = batch.ral;
+              openRalPicker(ralBtn, proxy, bt.id, () => {
+                batch.ral = (proxy.rals && proxy.rals[bt.id]) || null;
+                syncBatches(); rebuildChips();
+              });
+            } else {
+              openRalPicker(ralBtn, addr, bt.id, () => rebuildChips());
+            }
           });
 
           // Výrobní čísla / sériová čísla pro tento typ boxu (volitelné)
@@ -4670,36 +4731,69 @@ function renderOrders() {
           snInp.type = 'text';
           snInp.placeholder = 'výr. č.';
           snInp.title = 'Výrobní čísla / SN — volitelně (např. SN001-SN025 nebo 12345, 12346, 12347)';
-          snInp.value = (addr.serials && addr.serials[bt.id]) || '';
+          snInp.value = batchList ? (batch.serials || '') : ((addr.serials && addr.serials[bt.id]) || '');
           snInp.style.cssText = 'width:90px;background:var(--bg);border:1px solid var(--border);' +
             'border-radius:4px;color:var(--text);font-family:IBM Plex Mono,monospace;' +
             'font-size:10px;padding:2px 5px;margin-left:4px;';
           snInp.addEventListener('input', () => {
+            if (batchList) { batch.serials = snInp.value; syncBatches(); return; }
             if (!addr.serials) addr.serials = {};
             addr.serials[bt.id] = snInp.value;
           });
 
+          // ⧉ Další dávka stejného typu (jiné RAL / výr. č. / počet) — na posledním řádku typu
+          let dupBtn = null;
+          if (bi === rows.length - 1) {
+            dupBtn = document.createElement('button');
+            dupBtn.type = 'button';
+            dupBtn.innerHTML = '⧉';
+            dupBtn.title = 'Přidat další dávku stejného typu — jiné RAL / výrobní čísla / počet kusů';
+            dupBtn.style.cssText = `background:none;border:none;color:var(--muted);cursor:pointer;
+              font-size:12px;padding:0 0 0 2px;line-height:1;`;
+            dupBtn.addEventListener('click', () => {
+              if (!addr.batches) addr.batches = {};
+              if (!addr.batches[bt.id]) {
+                addr.batches[bt.id] = [{ qty: addr.boxes[bt.id] || 0,
+                  ral: (addr.rals && addr.rals[bt.id]) || null,
+                  serials: (addr.serials && addr.serials[bt.id]) || '' }];
+              }
+              addr.batches[bt.id].push({ qty: 1, ral: null, serials: '' });
+              const list = addr.batches[bt.id];
+              addr.boxes[bt.id] = list.reduce((s, b) => s + (+b.qty || 0), 0);
+              invalidate(); rebuildChips();
+            });
+          }
+
           const del = document.createElement('button');
           del.innerHTML = '×';
-          del.title = 'Odebrat';
+          del.title = batchList ? 'Odebrat tuto dávku' : 'Odebrat';
           del.style.cssText = `background:none;border:none;color:var(--muted);cursor:pointer;
             font-size:13px;padding:0 0 0 2px;line-height:1;`;
           del.addEventListener('click', () => {
+            if (batchList) { removeBatch(bi); return; }
             addr.boxes[bt.id] = 0;
-            stops = []; assignedVehicles = [];
+            if (addr.batches && addr.batches[bt.id]) delete addr.batches[bt.id];
+            invalidate();
             rebuildChips();
-            const btn = document.getElementById('calcBtn');
-            if (btn) { btn.textContent = '⚡ Přepočítat ložné plány ⚠'; btn.style.background = 'var(--orange)'; }
           });
 
           chip.appendChild(swatch);
+          if (batchList) {
+            const idxLbl = document.createElement('span');
+            idxLbl.style.cssText = 'color:var(--muted);font-size:9px;flex-shrink:0;';
+            idxLbl.textContent = '#' + (bi + 1);
+            idxLbl.title = 'Dávka ' + (bi + 1) + ' z ' + rows.length;
+            chip.appendChild(idxLbl);
+          }
           chip.appendChild(nameLbl);
           chip.appendChild(inp);
           chip.appendChild(unit);
           chip.appendChild(ralBtn);
           chip.appendChild(snInp);
+          if (dupBtn) chip.appendChild(dupBtn);
           chip.appendChild(del);
           chipsWrap.appendChild(chip);
+          });
         });
 
         // Tlačítko + Přidat typ (dropdown)
@@ -8563,6 +8657,7 @@ function renderPlanView() {
             if (a.id === st.id) {
               st.rals    = { ...(a.rals    || {}) };
               st.serials = { ...(a.serials || st.serials || {}) };
+              st.batches = a.batches ? JSON.parse(JSON.stringify(a.batches)) : st.batches;
               return;
             }
           }
@@ -13920,12 +14015,26 @@ async function syncFromServer(silent) {
     if (data.version <= _lastSharedVersion) return;
 
     // ── MERGE: spojit data podle ID/klíčů ──
-    // boxTypes: podle (l,w,h)
-    const mergedTypes = [...incomingTypes];
-    const serverTypeKey = new Set(incomingTypes.map(t => `${t.l}|${t.w}|${t.h}`));
+    // boxTypes: podle (název, l, w, h). Dřívější merge jen podle rozměrů způsoboval
+    // kolize ID (dva různé typy se stejným ID → „duchové" karty v objednávkách).
+    // Kolizi ID řeší nové ID + remap referencí v LOKÁLNÍCH objednávkách.
+    const mergedTypes = incomingTypes.map(t => ({ ...t }));
+    dedupeBoxTypeIds(mergedTypes);   // pojistka: server nesmí obsahovat duplicitní ID
+    const typeKey = (t) => `${(t.name || '').trim().toLowerCase()}|${t.l}|${t.w}|${t.h}`;
+    const serverByKey = new Map(mergedTypes.map(t => [typeKey(t), t]));
+    const usedIds = new Set(mergedTypes.map(t => +t.id));
+    let maxTypeId = Math.max(500, ...Array.from(usedIds).map(x => +x || 0));
+    const idRemap = {};   // localId → serverové ID (shodný typ) nebo nové ID (kolize)
     let addedT = 0;
     for (const lt of (boxTypes || [])) {
-      if (!serverTypeKey.has(`${lt.l}|${lt.w}|${lt.h}`)) { mergedTypes.push({ ...lt }); addedT++; }
+      const match = serverByKey.get(typeKey(lt));
+      if (match) { if (+match.id !== +lt.id) idRemap[lt.id] = +match.id; continue; }
+      let nid = +lt.id;
+      if (usedIds.has(nid)) { nid = ++maxTypeId; idRemap[lt.id] = nid; }
+      usedIds.add(nid); maxTypeId = Math.max(maxTypeId, nid);
+      const copy = { ...lt, id: nid };
+      mergedTypes.push(copy); serverByKey.set(typeKey(copy), copy);
+      addedT++;
     }
     // fleet: podle (label,L,W,H)
     const mergedFleet = [...incomingFleet];
@@ -13934,11 +14043,30 @@ async function syncFromServer(silent) {
     for (const lf of (fleet || [])) {
       if (!serverFleetKey.has(`${lf.label}|${lf.L}|${lf.W}|${lf.H}`)) { mergedFleet.push({ ...lf }); addedF++; }
     }
-    // orders: podle id, server-side má precedenci pro stejné id
+    // orders: podle id, server-side má precedenci pro stejné id.
+    // Lokálně přidávané objednávky projdou remapem typeId (viz idRemap výše).
+    const remapKeys = (obj) => {
+      if (!obj) return obj;
+      const out = {};
+      for (const k in obj) out[idRemap[k] !== undefined ? idRemap[k] : k] = obj[k];
+      return out;
+    };
+    const remapOrderTypeIds = (order) => {
+      if (!Object.keys(idRemap).length) return order;
+      const c = JSON.parse(JSON.stringify(order));
+      c.addresses = (c.addresses || []).map(a => ({
+        ...a,
+        boxes:   remapKeys(a.boxes)   || {},
+        serials: remapKeys(a.serials) || {},
+        rals:    remapKeys(a.rals)    || {},
+        batches: a.batches ? remapKeys(a.batches) : undefined,
+      }));
+      return c;
+    };
     const ordersById = new Map(incomingOrders.map(o => [o.id, o]));
     let addedO = 0;
     for (const lo of (orders || [])) {
-      if (!ordersById.has(lo.id)) { ordersById.set(lo.id, lo); addedO++; }
+      if (!ordersById.has(lo.id)) { ordersById.set(lo.id, remapOrderTypeIds(lo)); addedO++; }
     }
     const mergedOrders = Array.from(ordersById.values());
     // activity: union podle id (append-only), seřazené sestupně po datu, cap 500
@@ -14690,12 +14818,24 @@ function exportStressCsv() {
         si, name: stopName(si),
         customer: st.customer || '',
         orderNo:  st.orderNo  || '',
-        lines: Object.keys(byStop[si]).map(tid => ({
-          tid: +tid,
-          count: byStop[si][tid],
-          t: boxTypeMap.get(+tid),
-          serial: (st.serials && st.serials[+tid]) || ''
-        })).filter(l => l.t)
+        lines: Object.keys(byStop[si]).flatMap(tid => {
+          const t = boxTypeMap.get(+tid);
+          if (!t) return [];
+          const total = byStop[si][tid];
+          const batches = (st.batches && st.batches[+tid] && st.batches[+tid].length > 1) ? st.batches[+tid] : null;
+          if (!batches) {
+            const ral = (st.rals && st.rals[+tid] && st.rals[+tid].ral) || '';
+            return [{ tid: +tid, count: total, t, serial: (st.serials && st.serials[+tid]) || '', ral }];
+          }
+          // Dávky: rozdělit naložený počet dle dávek (zbytek/dorovnání na poslední dávku)
+          const out = []; let left = total;
+          batches.forEach((b, i) => {
+            const c = (i === batches.length - 1) ? left : Math.min(+b.qty || 0, left);
+            left -= c;
+            if (c > 0) out.push({ tid: +tid, count: c, t, serial: b.serials || '', ral: (b.ral && b.ral.ral) || '' });
+          });
+          return out;
+        })
       };
     });
     const label = (vehicles[0] ? vehicles[0].label : 'Souprava') + (avs.length > 1 ? ' (souprava)' : (avs[0] && avs[0].veh._part === 'auto' ? ' (jen auto)' : ''));
@@ -14958,7 +15098,7 @@ function exportStressCsv() {
           const routeTxt = 'Bruntál → ' + (d.stops.map((s, i) => (i + 1) + '. ' + esc(s.name)).join(' → ') || '—') + ' → ' + esc(shared.crossName);
           const stopsHTML = d.stops.map((s, i) => {
             const rows = s.lines.map(l =>
-              `<tr><td style="padding:3px 6px;border:1px solid #ddd;">${l.count}×</td><td style="padding:3px 6px;border:1px solid #ddd;">${esc(l.t.name)}</td><td style="padding:3px 6px;border:1px solid #ddd;">${l.t.l}×${l.t.w}×${l.t.h} mm</td><td style="padding:3px 6px;border:1px solid #ddd;font-family:'Courier New',monospace;font-size:10px;color:#555;">${esc(l.serial || '—')}</td><td style="padding:3px 6px;border:1px solid #ddd;text-align:right;">${l.count * l.t.kg} kg</td></tr>`
+              `<tr><td style="padding:3px 6px;border:1px solid #ddd;">${l.count}×</td><td style="padding:3px 6px;border:1px solid #ddd;">${esc(l.t.name)}${l.ral ? ` <span style="color:#777;font-size:10px;">· ${esc(l.ral)}</span>` : ''}</td><td style="padding:3px 6px;border:1px solid #ddd;">${l.t.l}×${l.t.w}×${l.t.h} mm</td><td style="padding:3px 6px;border:1px solid #ddd;font-family:'Courier New',monospace;font-size:10px;color:#555;">${esc(l.serial || '—')}</td><td style="padding:3px 6px;border:1px solid #ddd;text-align:right;">${l.count * l.t.kg} kg</td></tr>`
             ).join('');
             const hours = shared.hoursBySi[s.si];
             const custLine = s.customer ? `<div style="font-size:11px;color:#0d6e4e;font-weight:600;margin-top:2px;">🏢 ${esc(s.customer)}${s.orderNo ? ` <span style="color:#888;font-weight:400;">· obj. č. ${esc(s.orderNo)}</span>` : ''}</div>` : '';
@@ -15206,7 +15346,7 @@ function exportStressCsv() {
       const routeTxt = 'Bruntál → ' + (d.stops.map((s, i) => (i + 1) + '. ' + esc(s.name)).join(' → ') || '—') + ' → ' + esc(sh.crossName);
       const stopsHTML = d.stops.map((s, i) => {
         const rows = s.lines.map(l =>
-          `<tr><td>${l.count}×</td><td>${volClass(l.t)}</td><td>${fmtDims(l.t)}</td><td>${esc(l.t.name)}</td><td style="font-family:'Courier New',monospace;font-size:9px;">${esc(l.serial || '—')}</td><td class="r">${l.t.kg}</td><td class="r">${l.count * l.t.kg}</td></tr>`
+          `<tr><td>${l.count}×</td><td>${volClass(l.t)}</td><td>${fmtDims(l.t)}</td><td>${esc(l.t.name)}${l.ral ? ` · ${esc(l.ral)}` : ''}</td><td style="font-family:'Courier New',monospace;font-size:9px;">${esc(l.serial || '—')}</td><td class="r">${l.t.kg}</td><td class="r">${l.count * l.t.kg}</td></tr>`
         ).join('');
         const hours = sh.hoursBySi[s.si], zak = sh.zakBySi[s.si], vyd = sh.vydBySi[s.si];
         const custLine = s.customer ? `<div style="font-size:10px;color:#0d6e4e;font-weight:600;margin-top:2px;">🏢 ${esc(s.customer)}${s.orderNo ? ` <span style="color:#888;font-weight:400;">· obj. č. ${esc(s.orderNo)}</span>` : ''}</div>` : '';
