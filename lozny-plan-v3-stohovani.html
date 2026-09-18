@@ -805,11 +805,8 @@ canvas { display: block; }
     <button class="tab" data-page="pageGuide" style="border-color:var(--green,#3dd68c);color:var(--green,#3dd68c);" title="Návod – jak appku používat">❓ Návod</button>
   </div>
   <div style="margin-left:auto;display:flex;gap:6px;align-items:center;">
-    <!-- 1. Primární akce: Nová objednávka (velké okno). Mazání vše-načisto je v menu 💾 Plán. -->
-    <button onclick="openNewOrderModal()" title="Založit novou objednávku ve velkém okně (nic nemaže)"
-      style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;padding:7px 14px;border-radius:4px;cursor:pointer;border:1px solid var(--accent);color:#000;background:var(--accent);font-weight:700;text-transform:uppercase;transition:all 0.15s;white-space:nowrap;">➕ Nová</button>
-
-    <!-- 2. Dropdown Plán: ukládání/načítání/historie -->
+    <!-- Nová objednávka má velké tlačítko v sekci Objednávky; mazání vše-načisto je v menu 💾 Plán. -->
+    <!-- Dropdown Plán: ukládání/načítání/historie -->
     <div style="position:relative;display:inline-block;" id="planMenuWrap">
       <button onclick="(function(e){var l=document.getElementById('planMenuList');l.style.display=l.style.display==='block'?'none':'block';if(l.style.display==='block')setTimeout(()=>{document.addEventListener('click',function h(ev){if(!document.getElementById('planMenuWrap').contains(ev.target)){l.style.display='none';document.removeEventListener('click',h);}});},10);})(event)"
         title="Plán: uložit / načíst / historie"
@@ -855,8 +852,11 @@ canvas { display: block; }
 
   <!-- Orders — nahoře (nejčastější akce) -->
   <div style="padding:20px 24px 0;">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap;">
       <div class="section-title" style="margin-bottom:0;">Objednávky</div>
+      <button id="addOrderBtn" title="Založit novou objednávku ve velkém okně"
+        style="font-family:'IBM Plex Sans',sans-serif;font-size:15px;font-weight:700;padding:12px 28px;border-radius:10px;cursor:pointer;border:none;background:var(--accent);color:#fff;box-shadow:0 3px 10px rgba(194,145,19,0.35);transition:all 0.15s;white-space:nowrap;"
+        onmouseenter="this.style.filter='brightness(1.08)'" onmouseleave="this.style.filter=''">➕ Nová objednávka</button>
       <button id="optimizeRouteBtn" style="
         font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;
         padding:5px 14px;border-radius:4px;cursor:pointer;
@@ -867,7 +867,6 @@ canvas { display: block; }
     </div>
     <div id="routeOrderDisplay" style="display:none;background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:10px 14px;margin-bottom:10px;font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace;line-height:1.7;"></div>
     <div id="ordersList"></div>
-    <button class="add-stop-btn" id="addOrderBtn" style="margin-top:10px;">+ Přidat objednávku</button>
   </div>
 
   <!-- Vehicles / Fleet -->
@@ -2186,8 +2185,10 @@ let nestSpotRects = [];        // hit-mapa kroužkových tlačítek pro vnořen�
 // Flatten orders → stops (no GPS, just order of entry)
 function flattenStops() {
   stops = [];
-  orders.forEach(order => {
-    if (order.includeInCalc === false) return;  // čekající objednávka – vyloučena z výpočtu
+  // ⭐ Prioritní objednávky jdou první (= první vykládky); jinak pořadí zadání (stabilní sort)
+  const ordersSorted = orders.slice().sort((a, b) => ((b.priority ? 1 : 0) - (a.priority ? 1 : 0)));
+  ordersSorted.forEach(order => {
+    if (order.includeInCalc === false) return;  // vyřazena z výpočtu (checkbox „do výpočtu")
     order.addresses.forEach(addr => {
       stops.push({
         id: addr.id,
@@ -4442,6 +4443,8 @@ function renderOrders() {
   orders.forEach((order, oi) => {
     const block = document.createElement('div');
     block.className = 'order-block';
+    if (order.includeInCalc === false) block.style.opacity = '0.55';                       // vyřazena z výpočtu
+    if (order.priority) { block.style.borderColor = 'var(--accent)'; block.style.boxShadow = '0 0 0 1px var(--accent)'; }  // ⭐ prioritní
 
     // Order header
     const hdr = document.createElement('div');
@@ -4489,23 +4492,55 @@ function renderOrders() {
     nameInp.addEventListener('input', () => { order.name = nameInp.value; });
     hdr.appendChild(nameInp);
 
+    // Zneplatnění spočítaného plánu po změně výběru/priority
+    const invalidateCalc = () => {
+      stops = []; assignedVehicles = [];
+      const btn = document.getElementById('calcBtn');
+      if (btn) { btn.textContent = '⚡ Přepočítat ložné plány ⚠'; btn.style.background = 'var(--orange)'; }
+    };
+
     if (order.pending) {
       const pBadge = document.createElement('span');
       pBadge.textContent = '⏸ ČEKÁ';
       pBadge.title = 'Čekající objednávka – odložený náklad, čeká na doplnění';
       pBadge.style.cssText = 'font-family:IBM Plex Mono,monospace;font-size:9px;padding:3px 7px;border-radius:3px;background:rgba(255,159,67,0.15);color:var(--orange);border:1px solid rgba(255,159,67,0.4);white-space:nowrap;';
       hdr.appendChild(pBadge);
-
-      const incLbl = document.createElement('label');
-      incLbl.style.cssText = 'display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);cursor:pointer;white-space:nowrap;';
-      const incChk = document.createElement('input');
-      incChk.type = 'checkbox';
-      incChk.checked = (order.includeInCalc === true);
-      incChk.addEventListener('change', () => { order.includeInCalc = incChk.checked; stops = []; renderOrders(); });
-      incLbl.appendChild(incChk);
-      incLbl.appendChild(document.createTextNode('zahrnout do výpočtu'));
-      hdr.appendChild(incLbl);
     }
+
+    // ⭐ Priorita — objednávka se musí odbavit první (plánuje se na začátek: 1. vykládky)
+    const priOn = !!order.priority;
+    const priBtn = document.createElement('button');
+    priBtn.type = 'button';
+    priBtn.textContent = priOn ? '⭐ PRIORITA' : '☆ priorita';
+    priBtn.title = priOn
+      ? 'Priorita zapnutá — bedny této objednávky se plánují jako první vykládky. Klikni pro vypnutí.'
+      : 'Označit jako prioritní — musí se odbavit první (naplánuje se na začátek)';
+    priBtn.style.cssText = 'font-family:IBM Plex Mono,monospace;font-size:9px;padding:3px 8px;border-radius:3px;cursor:pointer;white-space:nowrap;letter-spacing:0.5px;' +
+      (priOn ? 'background:rgba(240,192,64,0.18);color:var(--accent);border:1px solid var(--accent);font-weight:700;'
+             : 'background:none;color:var(--muted);border:1px solid var(--border);');
+    priBtn.addEventListener('click', () => {
+      order.priority = !order.priority;
+      invalidateCalc(); renderOrders();
+      try { saveWorkspace(); } catch (e) {}
+    });
+    hdr.appendChild(priBtn);
+
+    // ✓ Do výpočtu — každá objednávka jde vybrat/vyřadit z výpočtu ložného plánu
+    const incLbl = document.createElement('label');
+    incLbl.title = 'Zaškrtnuté objednávky vstupují do výpočtu ložného plánu; odškrtnutá zůstane zadaná, ale nenaloží se';
+    incLbl.style.cssText = 'display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);cursor:pointer;white-space:nowrap;font-family:IBM Plex Mono,monospace;';
+    const incChk = document.createElement('input');
+    incChk.type = 'checkbox';
+    incChk.style.cssText = 'width:14px;height:14px;cursor:pointer;accent-color:var(--green);';
+    incChk.checked = (order.includeInCalc !== false);
+    incChk.addEventListener('change', () => {
+      order.includeInCalc = incChk.checked;
+      invalidateCalc(); renderOrders();
+      try { saveWorkspace(); } catch (e) {}
+    });
+    incLbl.appendChild(incChk);
+    incLbl.appendChild(document.createTextNode('do výpočtu'));
+    hdr.appendChild(incLbl);
 
     // Import Excel for this order
     const xlsLabel = document.createElement('label');
@@ -10808,9 +10843,10 @@ async function optimizeRoute() {
   const status = document.getElementById('routeStatus');
   const display = document.getElementById('routeOrderDisplay');
 
-  // Collect all unique addresses across all orders
+  // Collect all unique addresses across all orders (jen ty vybrané do výpočtu)
   const allAddresses = [];
   orders.forEach(order => {
+    if (order.includeInCalc === false) return;   // vyřazena z výpočtu
     order.addresses.forEach(addr => {
       if (addr.address.trim()) allAddresses.push({ addr, order });
     });
@@ -10859,11 +10895,21 @@ async function optimizeRoute() {
         name: addr.address,
         orderName: order.name,
         orderColor: order.color,
+        customer: order.customer || '',
+        orderNo:  order.orderNo  || '',
+        serials:  { ...(addr.serials || {}) },
+        rals:     { ...(addr.rals || {}) },
+        batches:  addr.batches ? JSON.parse(JSON.stringify(addr.batches)) : undefined,
         boxes: { ...addr.boxes },
+        _priority: !!order.priority,
         _lat: addrCoords[i].lat,
         _lon: addrCoords[i].lon,
       };
     });
+    // ⭐ Prioritní objednávky jako první vykládky (uvnitř skupin zůstává pořadí trasy)
+    if (stops.some(s => s._priority)) {
+      stops = [...stops.filter(s => s._priority), ...stops.filter(s => !s._priority)];
+    }
 
     let totalKm = haversine(ORIGIN, addrCoords[stopOrder[0]]);
     for (let i = 0; i < stopOrder.length - 1; i++) {
