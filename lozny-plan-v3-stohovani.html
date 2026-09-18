@@ -12,20 +12,23 @@
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
 
+/* Světlé téma ve stylu intranetu (světle šedozelené pozadí, bílé panely).
+   Akcentní barvy ztmavené kvůli kontrastu na světlém podkladu. */
 :root {
-  --bg: #0d1117;
-  --panel: #161c27;
-  --panel2: #1c2333;
-  --border: #2a3347;
-  --accent: #f0c040;
-  --blue: #4d9fff;
-  --green: #3dd68c;
-  --red: #ff5f57;
-  --purple: #b07fff;
-  --orange: #ff9f43;
-  --text: #e2e8f0;
-  --muted: #5a6a82;
-  --truck-bg: #141a25;
+  --bg: #eef1ec;
+  --panel: #ffffff;
+  --panel2: #f4f6f1;
+  --border: #dde3da;
+  --accent: #c29113;
+  --blue: #1f6fd6;
+  --green: #15ab57;
+  --red: #d9342b;
+  --purple: #7a4fd0;
+  --orange: #e07b1a;
+  --text: #0f1512;
+  --muted: #5b635c;
+  --truck-bg: #f6f8f4;
+  --canvas-bg: #f6f8f4;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -425,7 +428,7 @@ header h1 {
   gap: 8px;
   padding: 8px 12px;
   border-bottom: 1px solid var(--border);
-  background: rgba(255,255,255,0.02);
+  background: rgba(0,0,0,0.02);
 }
 
 .addr-num {
@@ -697,7 +700,7 @@ canvas { display: block; }
 .modal-overlay {
   display: none;
   position: fixed; inset: 0;
-  background: rgba(0,0,0,0.75);
+  background: rgba(15,21,18,0.45);
   z-index: 200;
   align-items: center;
   justify-content: center;
@@ -775,8 +778,8 @@ canvas { display: block; }
 .empty-state .big { font-size: 40px; }
 .empty-state p { font-size: 13px; }
 .dm-item{display:block;width:100%;text-align:left;padding:8px 12px;background:none;border:none;color:var(--text,#e6edf3);font-size:12px;font-family:inherit;cursor:pointer;border-radius:4px;margin:1px 0;}
-.dm-item:hover{background:rgba(255,255,255,0.06);}
-.dm-item + .dm-item{border-top:1px solid rgba(255,255,255,0.04);}
+.dm-item:hover{background:rgba(0,0,0,0.06);}
+.dm-item + .dm-item{border-top:1px solid rgba(0,0,0,0.04);}
 </style>
 </head>
 <body>
@@ -811,7 +814,7 @@ canvas { display: block; }
       <button onclick="(function(e){var l=document.getElementById('planMenuList');l.style.display=l.style.display==='block'?'none':'block';if(l.style.display==='block')setTimeout(()=>{document.addEventListener('click',function h(ev){if(!document.getElementById('planMenuWrap').contains(ev.target)){l.style.display='none';document.removeEventListener('click',h);}});},10);})(event)"
         title="Plán: uložit / načíst / historie"
         style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;padding:7px 14px;border-radius:4px;cursor:pointer;border:1px solid var(--green);color:var(--green);background:rgba(61,214,140,0.08);text-transform:uppercase;transition:all 0.15s;white-space:nowrap;">💾 Plán <span style="font-size:9px;opacity:.7;margin-left:2px;">▾</span></button>
-      <div id="planMenuList" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:var(--panel,#1c2030);border:1px solid var(--border,#30363d);border-radius:8px;padding:5px;z-index:9000;min-width:240px;box-shadow:0 6px 18px rgba(0,0,0,0.5);">
+      <div id="planMenuList" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:var(--panel,#1c2030);border:1px solid var(--border,#30363d);border-radius:8px;padding:5px;z-index:9000;min-width:240px;box-shadow:0 6px 18px rgba(15,21,18,0.16);">
         <button id="savePlanBtn" class="dm-item" title="Uložit aktuální plán jako .lozny.json soubor">💾 Uložit do souboru</button>
         <button id="loadPlanBtn" class="dm-item" title="Načíst .lozny.json soubor (s předchozí Storage)">📂 Načíst plán</button>
         <label for="jsonImportInput" class="dm-item" style="display:block;cursor:pointer;" title="Nahrát .lozny.json přímo ze souboru">⬆ Nahrát .json soubor</label>
@@ -893,7 +896,7 @@ canvas { display: block; }
         style="border-color:var(--blue);color:var(--blue);padding:10px 14px;border-radius:8px;font-size:11px;cursor:pointer;white-space:nowrap;">
         🔬 Testy a vývoj <span style="font-size:9px;opacity:.7;margin-left:2px;">▾</span>
       </button>
-      <div id="devMenuList" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:var(--panel,#1c2030);border:1px solid var(--border,#30363d);border-radius:8px;padding:6px;z-index:9000;min-width:280px;box-shadow:0 6px 18px rgba(0,0,0,0.5);">
+      <div id="devMenuList" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:var(--panel,#1c2030);border:1px solid var(--border,#30363d);border-radius:8px;padding:6px;z-index:9000;min-width:280px;box-shadow:0 6px 18px rgba(15,21,18,0.16);">
         <button class="dm-item" onclick="loadTestOrderCH();closeDevMenu();" title="Nahraje testovací objednávku CH (3 vykládky) pro porovnání">📦 Načíst testovací objednávku (CH)</button>
         <button class="dm-item" onclick="openTestModal();closeDevMenu();" title="Testovací engine — interní scénáře">🧪 Testovací engine</button>
         <button class="dm-item" onclick="openHistorie();closeDevMenu();" title="Historie expedic — appka vs skládání kolegů (učení z reálných dat)">📚 Historie expedic (appka vs kolegové)</button>
@@ -1097,7 +1100,7 @@ canvas { display: block; }
     #pageGuide .gpill:hover{border-color:var(--accent);color:var(--accent);}
     #pageGuide .gstep{border:1px solid var(--border);border-radius:10px;margin-bottom:10px;background:var(--panel);overflow:hidden;}
     #pageGuide .gstep-h{display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;user-select:none;}
-    #pageGuide .gstep-h:hover{background:rgba(255,255,255,0.03);}
+    #pageGuide .gstep-h:hover{background:rgba(0,0,0,0.03);}
     #pageGuide .gnum{width:26px;height:26px;border-radius:50%;background:var(--accent);color:#000;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:13px;flex:none;}
     #pageGuide .gtitle{font-size:14px;font-weight:700;color:var(--text);}
     #pageGuide .gsub{font-size:11px;color:var(--muted);margin-top:2px;}
@@ -1112,7 +1115,7 @@ canvas { display: block; }
     #pageGuide .gfake{font-family:'IBM Plex Mono',monospace;font-size:11px;}
     #pageGuide .gfbtn{display:inline-block;padding:5px 11px;border-radius:5px;font-size:11px;font-family:'IBM Plex Mono',monospace;border:1px solid var(--border);}
     #pageGuide .gdemo-item{display:flex;justify-content:space-between;gap:12px;padding:6px 12px;cursor:pointer;font-size:12px;color:var(--text);}
-    #pageGuide .gdemo-item:hover{background:rgba(255,255,255,.06);}
+    #pageGuide .gdemo-item:hover{background:rgba(0,0,0,0.06);}
     #pageGuide .gdemo-item span.dim{color:var(--muted);font-size:10px;}
     #pageGuide .gtip{border-left:3px solid var(--green);background:rgba(61,214,140,.06);padding:10px 14px;border-radius:0 8px 8px 0;font-size:12px;color:var(--text);line-height:1.7;margin:0 0 18px;}
     .guide-hl{outline:3px solid var(--green)!important;outline-offset:3px;border-radius:6px;animation:guidePulse 1.3s ease-in-out 2;}
@@ -1173,7 +1176,7 @@ canvas { display: block; }
           <div class="gmlabel">VYZKOUŠEJ SI TO (ukázka — nic se neuloží)</div>
           <div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px;" id="guideDemoChips"></div>
           <div style="position:relative;display:inline-block;margin-top:8px;">
-            <button onclick="guideDemoMenu()" class="gfbtn" style="border-style:dashed;color:var(--muted);background:rgba(255,255,255,.04);cursor:pointer;">+ Typ ▾</button>
+            <button onclick="guideDemoMenu()" class="gfbtn" style="border-style:dashed;color:var(--muted);background:rgba(0,0,0,0.04);cursor:pointer;">+ Typ ▾</button>
             <div id="guideDemoMenu" style="display:none;position:absolute;top:100%;left:0;z-index:30;background:var(--panel);border:1px solid var(--border);border-radius:8px;min-width:230px;padding:4px 0;box-shadow:0 8px 24px rgba(0,0,0,.5);margin-top:4px;">
               <div class="gdemo-item" onclick="guideDemoAdd('Box S','#4d9fff')"><span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#4d9fff;"></span> Box S</span><span class="dim">950×600×800</span></div>
               <div class="gdemo-item" onclick="guideDemoAdd('Box M','#3dd68c')"><span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#3dd68c;"></span> Box M</span><span class="dim">1200×800×920</span></div>
@@ -1235,11 +1238,11 @@ canvas { display: block; }
       <div class="gstep-b" style="display:none;">
         <p>Na záložce <span class="gkey">2. Výsledky</span> zapneš tlačítkem <span class="gkey">✋ Ruční úprava</span> editovatelný režim. Klikneš na bednu v plánu a vyskočí menu s těmito akcemi:</p>
         <table style="width:100%;border-collapse:collapse;font-size:11px;margin:8px 0;">
-          <tr style="background:rgba(255,255,255,0.04);"><td style="padding:6px 8px;width:140px;"><b>⬇ Na podlahu</b></td><td style="padding:6px 8px;color:var(--muted);">Appka <b>zeleně zvýrazní</b> všechna platná místa na podlaze, kam se bedna vejde. Modrá s ⟳ = otočená o 90°. Klik = umístit.</td></tr>
+          <tr style="background:rgba(0,0,0,0.04);"><td style="padding:6px 8px;width:140px;"><b>⬇ Na podlahu</b></td><td style="padding:6px 8px;color:var(--muted);">Appka <b>zeleně zvýrazní</b> všechna platná místa na podlaze, kam se bedna vejde. Modrá s ⟳ = otočená o 90°. Klik = umístit.</td></tr>
           <tr><td style="padding:6px 8px;"><b>⬆ Nastohovat</b></td><td style="padding:6px 8px;color:var(--muted);">Zelená místa pro stohování na vrchol jiné bedny stejného půdorysu.</td></tr>
-          <tr style="background:rgba(255,255,255,0.04);"><td style="padding:6px 8px;"><b>🔄 Otočit o 90°</b></td><td style="padding:6px 8px;color:var(--muted);">Prohodí délku a šířku. Pokud by rotace způsobila kolizi nebo přesah mimo vůz, akce se zruší.</td></tr>
+          <tr style="background:rgba(0,0,0,0.04);"><td style="padding:6px 8px;"><b>🔄 Otočit o 90°</b></td><td style="padding:6px 8px;color:var(--muted);">Prohodí délku a šířku. Pokud by rotace způsobila kolizi nebo přesah mimo vůz, akce se zruší.</td></tr>
           <tr><td style="padding:6px 8px;"><b>🪆 Vnořit do…</b></td><td style="padding:6px 8px;color:var(--muted);">Přímo v plánu se <b>oranžově zvýrazní</b> všechny bedny, do kterých se rozměrově vejde dovnitř. Pokud je stoh tří beden nad sebou, ukáží se <b>tři kroužky s čísly 1/2/3</b> (1 = dno, 3 = horní vrstva) — klikneš, do které vrstvy chceš vnořit. Stejný typ do stejného typu se nenabízí (fyzicky nelze). Bedny s víkem se z nabídky vynechávají.</td></tr>
-          <tr style="background:rgba(255,255,255,0.04);"><td style="padding:6px 8px;"><b>🅿️ Odložit mimo kamion</b></td><td style="padding:6px 8px;color:var(--muted);">Bedna se vyjme z plánu a uloží do <b>parkovací zóny</b> pod plánem (oranžový rámeček). Vidíš tam typ, rozměry a vykládku. Tlačítkem <b>↩ Vrátit do vozu</b> bednu vrátíš zpět (appka nabídne nová místa). Tlačítko <b>✕ Smazat</b> ji odstraní jen z plánu (z objednávky zůstane).</td></tr>
+          <tr style="background:rgba(0,0,0,0.04);"><td style="padding:6px 8px;"><b>🅿️ Odložit mimo kamion</b></td><td style="padding:6px 8px;color:var(--muted);">Bedna se vyjme z plánu a uloží do <b>parkovací zóny</b> pod plánem (oranžový rámeček). Vidíš tam typ, rozměry a vykládku. Tlačítkem <b>↩ Vrátit do vozu</b> bednu vrátíš zpět (appka nabídne nová místa). Tlačítko <b>✕ Smazat</b> ji odstraní jen z plánu (z objednávky zůstane).</td></tr>
         </table>
         <p style="font-size:11px;color:var(--muted);"><b>Tip:</b> v <b>bočním</b> nebo <b>zadním</b> pohledu líp uvidíš stohy a vnoření. V rohu plánu je vždy malá 3D miniatura — kliknutím na ni se přepneš na plný 3D pohled.</p>
       </div>
@@ -1309,7 +1312,7 @@ canvas { display: block; }
         </div>
         <p><b>Které sloupce jsou povinné a které ne:</b></p>
         <table style="width:100%;border-collapse:collapse;font-size:11px;margin:6px 0;">
-          <tr style="background:rgba(255,255,255,0.04);"><td style="padding:5px 8px;width:130px;"><b>Povinné</b></td><td style="padding:5px 8px;color:var(--muted);">rozměry <code>X_DELKA_MM</code>, <code>Y_SIRKA_MM</code>, <code>Z_VYSKA_MM</code> · <b>úplná adresa</b> <code>ZASTAVKA_ADRESA</code> ve formátu <i>ulice + č.p., PSČ + město, země</i> — např. <code>Industriestrasse 12, 6023 Rothenburg, Switzerland</code></td></tr>
+          <tr style="background:rgba(0,0,0,0.04);"><td style="padding:5px 8px;width:130px;"><b>Povinné</b></td><td style="padding:5px 8px;color:var(--muted);">rozměry <code>X_DELKA_MM</code>, <code>Y_SIRKA_MM</code>, <code>Z_VYSKA_MM</code> · <b>úplná adresa</b> <code>ZASTAVKA_ADRESA</code> ve formátu <i>ulice + č.p., PSČ + město, země</i> — např. <code>Industriestrasse 12, 6023 Rothenburg, Switzerland</code></td></tr>
           <tr><td style="padding:5px 8px;"><b>Volitelné</b></td><td style="padding:5px 8px;color:var(--muted);"><code>OBJEDNATEL</code> (jinak „Import") · <code>HMOTNOST_KG</code> · <code>POCET</code> (default 1) · <code>HI</code> (vnitřní výška — pro vnoření kontejnerů; jinak 85 % výšky) · <code>VIKO</code> (výška víka v mm) · <code>NAZEV</code> (název typu bedny)</td></tr>
         </table>
         <p style="font-size:11px;color:var(--muted);"><b>Pozn.:</b> Sloupce <code>HI</code> a <code>VIKO</code> ovlivňují, zda do bedny lze něco vnořit. Když je <code>HI &lt; Z_VYSKA_MM</code>, bedna má vnitřní prostor pro menší bednu. Když <code>VIKO &gt; 0</code>, bedna má víko a vnoření se na ní nepoužije.</p>
@@ -1537,7 +1540,7 @@ function captureSnapshot2DSmall() {
     off.width = Math.round(cv.width * scale);
     off.height = Math.round(cv.height * scale);
     const oc = off.getContext('2d');
-    oc.fillStyle = '#0d1117'; oc.fillRect(0, 0, off.width, off.height);
+    oc.fillStyle = '#f6f8f4'; oc.fillRect(0, 0, off.width, off.height);
     oc.drawImage(cv, 0, 0, off.width, off.height);
     return off.toDataURL('image/jpeg', 0.7);
   } catch (e) { return ''; }
@@ -1700,8 +1703,8 @@ function openOrderHistoryModal() {
     const emailBadge = e.emailSent
       ? `<span style="display:inline-block;padding:2px 7px;border-radius:10px;background:rgba(77,159,255,0.15);color:var(--blue,#4d9fff);font-size:9px;font-weight:600;margin-left:4px;" title="E-mail odeslán ${e.emailSentAt ? new Date(e.emailSentAt).toLocaleString('cs-CZ') : ''}">✉ odesláno</span>`
       : '';
-    return `<div style="display:flex;gap:12px;padding:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:6px;margin-bottom:8px;">
-      <div style="flex:0 0 140px;">${e.snapshot2D ? `<img src="${e.snapshot2D}" style="width:100%;border-radius:4px;border:1px solid var(--border);">` : '<div style="background:#0d1117;border-radius:4px;padding:30px 0;text-align:center;color:var(--muted);font-size:10px;">bez náhledu</div>'}</div>
+    return `<div style="display:flex;gap:12px;padding:10px;background:rgba(0,0,0,0.04);border:1px solid var(--border);border-radius:6px;margin-bottom:8px;">
+      <div style="flex:0 0 140px;">${e.snapshot2D ? `<img src="${e.snapshot2D}" style="width:100%;border-radius:4px;border:1px solid var(--border);">` : '<div style="background:var(--canvas-bg);border-radius:4px;padding:30px 0;text-align:center;color:var(--muted);font-size:10px;">bez náhledu</div>'}</div>
       <div style="flex:1;min-width:0;">
         <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px;">${esc(e.name)}${pdfBadge}${emailBadge}</div>
         <div style="font-size:10px;color:var(--muted);margin-bottom:6px;">${dt} · ${author}</div>
@@ -1827,12 +1830,12 @@ function renderProfilePage() {
           const s = h.stats || {};
           const pdfBadge = h.pdfGenerated
             ? `<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:rgba(240,192,64,0.15);color:var(--accent,#f0c040);font-size:10px;font-weight:600;" title="PDF vygenerováno ${h.pdfGeneratedAt ? new Date(h.pdfGeneratedAt).toLocaleString('cs-CZ') : ''}">📄 PDF</span>`
-            : `<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:rgba(255,255,255,0.05);color:var(--muted);font-size:10px;" title="Přepravenka zatím nevygenerována">📄 ne</span>`;
+            : `<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:rgba(0,0,0,0.05);color:var(--muted);font-size:10px;" title="Přepravenka zatím nevygenerována">📄 ne</span>`;
           const emailBadge = h.emailSent
             ? `<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:rgba(77,159,255,0.15);color:var(--blue,#4d9fff);font-size:10px;font-weight:600;" title="E-mail odeslán ${h.emailSentAt ? new Date(h.emailSentAt).toLocaleString('cs-CZ') : ''}">✉ odesláno</span>`
-            : `<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:rgba(255,255,255,0.05);color:var(--muted);font-size:10px;" title="E-mail zatím neodeslán">✉ ne</span>`;
-          return `<div style="display:flex;gap:12px;padding:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:6px;">
-            <div style="flex:0 0 120px;">${h.snapshot2D ? `<img src="${h.snapshot2D}" style="width:100%;border-radius:4px;border:1px solid var(--border);">` : '<div style="background:#0d1117;border-radius:4px;padding:24px 0;text-align:center;color:var(--muted);font-size:10px;">bez náhledu</div>'}</div>
+            : `<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:rgba(0,0,0,0.05);color:var(--muted);font-size:10px;" title="E-mail zatím neodeslán">✉ ne</span>`;
+          return `<div style="display:flex;gap:12px;padding:10px;background:rgba(0,0,0,0.03);border:1px solid var(--border);border-radius:6px;">
+            <div style="flex:0 0 120px;">${h.snapshot2D ? `<img src="${h.snapshot2D}" style="width:100%;border-radius:4px;border:1px solid var(--border);">` : '<div style="background:var(--canvas-bg);border-radius:4px;padding:24px 0;text-align:center;color:var(--muted);font-size:10px;">bez náhledu</div>'}</div>
             <div style="flex:1;min-width:0;">
               <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px;">${esc(h.name)}</div>
               <div style="font-size:10px;color:var(--muted);margin-bottom:6px;">${dt}</div>
@@ -1853,7 +1856,7 @@ function renderProfilePage() {
       </div>
       ${myHistory.length > 20 ? `<div style="text-align:center;margin-top:10px;font-size:11px;color:var(--muted);">... a dalších ${myHistory.length - 20}. Kompletní historii uvidíš v tlačítku „📚 Historie" v hlavičce.</div>` : ''}
     </div>` : `
-    <div style="padding:30px;text-align:center;color:var(--muted);background:rgba(255,255,255,0.03);border-radius:8px;border:1px dashed var(--border);">
+    <div style="padding:30px;text-align:center;color:var(--muted);background:rgba(0,0,0,0.03);border-radius:8px;border:1px dashed var(--border);">
       <div style="font-size:36px;opacity:0.4;">📂</div>
       <div style="margin-top:8px;font-size:13px;">Zatím nemáš uložený žádný ložný plán.</div>
       <div style="font-size:11px;margin-top:4px;">Po výpočtu plánu klikni na „⭐ Uložit do historie" v hlavičce.</div>
@@ -1874,7 +1877,7 @@ function renderProfilePage() {
           if (a.type === 'plan_saved' && a.details?.name) detail = ' — ' + a.details.name + (a.details.totalKg ? ` · ${a.details.totalKg} kg` : '');
           else if (a.type === 'pdf_generated' && a.details?.rigs) detail = ` — ${a.details.rigs} souprav${a.details.totalKg ? ` · ${a.details.totalKg} kg` : ''}`;
           else if (a.type === 'email_sent' && a.details?.rigs)   detail = ` — ${a.details.rigs} souprav`;
-          return `<div style="display:flex;gap:10px;padding:6px 10px;background:rgba(255,255,255,0.03);border-radius:4px;font-size:11px;">
+          return `<div style="display:flex;gap:10px;padding:6px 10px;background:rgba(0,0,0,0.03);border-radius:4px;font-size:11px;">
             <div style="color:${color};font-weight:600;flex:0 0 160px;">${label}</div>
             <div style="flex:1;color:var(--text);">${esc(detail)}</div>
             <div style="color:var(--muted);flex:0 0 auto;font-family:'IBM Plex Mono',monospace;">${dt}</div>
@@ -2071,7 +2074,7 @@ function openRalPicker(anchorBtn, addr, typeId, onSelect) {
   const h = openUp ? Math.min(MAX_H, rect.top - MARGIN) : Math.min(MAX_H, spaceBelow - MARGIN);
   dd.style.cssText = `position:fixed;top:${topPx}px;left:${Math.max(8, rect.left - 100)}px;z-index:10000;
     background:var(--panel,#1c2030);border:1px solid var(--border,#30363d);border-radius:8px;
-    box-shadow:0 8px 24px rgba(0,0,0,0.6);width:300px;max-height:${h}px;overflow-y:auto;padding:8px;`;
+    box-shadow:0 8px 24px rgba(15,21,18,0.18);width:300px;max-height:${h}px;overflow-y:auto;padding:8px;`;
 
   const current = (addr.rals && addr.rals[typeId]) || null;
   let html = `<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">RAL barva (vyber nebo napiš)</div>`;
@@ -2406,7 +2409,7 @@ async function showVehicleRecommendation(units) {
       </div>
 
       <!-- Rychlé akce -->
-      <div style="padding:10px 20px;display:flex;gap:8px;border-bottom:1px solid var(--border);background:rgba(255,255,255,0.02);">
+      <div style="padding:10px 20px;display:flex;gap:8px;border-bottom:1px solid var(--border);background:rgba(0,0,0,0.02);">
         <button onclick="vehicleRecConfirm()" id="vehRecConfirmBtn"
           style="flex:1;padding:9px 0;border-radius:6px;border:none;background:var(--green);color:#000;
                  font-weight:700;font-size:12px;cursor:pointer;">
@@ -2481,7 +2484,7 @@ function buildVehicleRecCard(r, i) {
           &nbsp;·&nbsp; max ${(r.preset.maxKg/1000).toFixed(1)} t
         </div>
         <!-- Utilization bar -->
-        <div style="margin-top:5px;height:4px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden;">
+        <div style="margin-top:5px;height:4px;background:rgba(0,0,0,0.08);border-radius:2px;overflow:hidden;">
           <div style="height:100%;width:${Math.min(util,100)}%;background:${barColor};border-radius:2px;transition:width 0.3s;"></div>
         </div>
         <div style="font-size:9px;color:var(--muted);margin-top:2px;">Využití ${util}%</div>
@@ -3465,13 +3468,13 @@ function showAllVehiclesModal(results) {
               <div style="font-size:9px;color:var(--muted);font-family:'IBM Plex Mono',monospace;margin-top:1px;">${r.vdef.icon} ${r.vdef.id}: ${r.vdef.name}</div>
               ${mixInfo ? `<div style="font-size:8px;color:var(--accent);font-family:'IBM Plex Mono',monospace;margin-top:2px;">V1 ${(mixInfo.V1/1e9).toFixed(1)} · V2 ${(mixInfo.V2/1e9).toFixed(1)} m³${mixInfo.combo && mixInfo.combo.length ? ' · ' + mixInfo.combo.map(c => c.n + '× ' + c.label).join(' + ') : ''}</div>` : ''}
               <button id="vehtog_${idx}" onclick="event.stopPropagation();toggleVehVariants(${idx})"
-                style="margin-top:6px;font-size:9px;font-family:'IBM Plex Mono',monospace;padding:3px 9px;border-radius:4px;border:1px solid var(--border);background:rgba(255,255,255,0.04);color:var(--muted);cursor:pointer;">⊞ varianty A–J (${r.variants.length}) ▾</button>
+                style="margin-top:6px;font-size:9px;font-family:'IBM Plex Mono',monospace;padding:3px 9px;border-radius:4px;border:1px solid var(--border);background:rgba(0,0,0,0.04);color:var(--muted);cursor:pointer;">⊞ varianty A–J (${r.variants.length}) ▾</button>
             </div>
           </div>
         </td>
         <td style="padding:8px;">
           <canvas id="miniPlan_${r.id}" width="200" height="46"
-            style="display:block;border-radius:4px;border:1px solid var(--border);background:#0d1117;"></canvas>
+            style="display:block;border-radius:4px;border:1px solid var(--border);background:var(--canvas-bg);"></canvas>
         </td>
         <td style="padding:8px;text-align:center;font-family:'IBM Plex Mono',monospace;white-space:nowrap;">
           <b style="font-size:17px;color:${best ? 'var(--green)' : 'var(--accent)'};">${m.n}</b>
@@ -3504,7 +3507,7 @@ function showAllVehiclesModal(results) {
                   <span style="font-size:10px;font-weight:700;color:var(--text);">${v.vdef.icon} ${v.vdef.id}: ${v.vdef.name}</span>
                   ${vbest ? '<span style="font-size:8px;color:var(--green);">★</span>' : ''}
                 </div>
-                <canvas id="miniPlan_${v.id}" width="182" height="38" style="display:block;border-radius:4px;border:1px solid var(--border);background:#0d1117;"></canvas>
+                <canvas id="miniPlan_${v.id}" width="182" height="38" style="display:block;border-radius:4px;border:1px solid var(--border);background:var(--canvas-bg);"></canvas>
                 <div style="font-size:9px;font-family:'IBM Plex Mono',monospace;color:var(--muted);margin-top:5px;display:flex;justify-content:space-between;align-items:center;">
                   <span><b style="color:${vbest ? 'var(--green)' : 'var(--accent)'};font-size:13px;">${vm.n}</b> voz</span>
                   <span>podl. ${(vm.floorUtil * 100).toFixed(0)}%</span>
@@ -3550,7 +3553,7 @@ function showAllVehiclesModal(results) {
 
   document.body.appendChild(modal);
   modal.querySelectorAll('.avrow').forEach(tr => {
-    tr.addEventListener('mouseenter', () => tr.style.background = 'rgba(255,255,255,0.06)');
+    tr.addEventListener('mouseenter', () => tr.style.background = 'rgba(0,0,0,0.06)');
     tr.addEventListener('mouseleave', () => { const i = +tr.dataset.idx; tr.style.background = (i === 0 && results[0] && results[0].valid) ? 'rgba(61,214,140,0.06)' : ''; });
   });
   modal.classList.add('open');
@@ -4102,7 +4105,7 @@ function showVehiclePickerFor(veh) {
   dd.className = 'veh-picker-dd';
   dd.style.cssText = `position:fixed;z-index:9999;background:var(--panel);
     border:1px solid var(--border);border-radius:8px;
-    box-shadow:0 8px 24px rgba(0,0,0,0.5);min-width:280px;max-height:360px;
+    box-shadow:0 8px 24px rgba(15,21,18,0.18);min-width:280px;max-height:360px;
     overflow-y:auto;padding:4px 0;`;
 
   const hdr = document.createElement('div');
@@ -4126,7 +4129,7 @@ function showVehiclePickerFor(veh) {
         </div>
       </div>
       ${isTrail ? '<span style="font-size:9px;color:var(--orange);">🔗 souprava</span>' : ''}`;
-    item.addEventListener('mouseenter', () => item.style.background='rgba(255,255,255,0.06)');
+    item.addEventListener('mouseenter', () => item.style.background='rgba(0,0,0,0.06)');
     item.addEventListener('mouseleave', () => item.style.background='');
     item.addEventListener('click', () => {
       Object.assign(veh, preset, { id: veh.id });
@@ -4183,7 +4186,7 @@ function renderBoxTypes() {
   thead.innerHTML = `<tr style="background:var(--panel2);">
     <th rowspan="2" style="padding:6px 4px;text-align:center;font-size:9px;color:var(--muted);letter-spacing:1px;font-family:'IBM Plex Mono',monospace;border-bottom:1px solid var(--border);border-right:1px solid var(--border);font-weight:600;width:24px;vertical-align:middle;">▓</th>
     <th rowspan="2" style="padding:6px 8px;text-align:left;font-size:9px;color:var(--muted);letter-spacing:1px;font-family:'IBM Plex Mono',monospace;border-bottom:1px solid var(--border);border-right:1px solid var(--border);font-weight:600;min-width:180px;vertical-align:middle;">NÁZEV</th>
-    <th colspan="3" style="padding:5px 4px;text-align:center;font-size:9px;color:var(--text);letter-spacing:1px;font-family:'IBM Plex Mono',monospace;border-bottom:1px solid var(--border);border-right:1px solid var(--border);font-weight:700;background:rgba(255,255,255,0.03);">VNĚJŠÍ ROZMĚR (mm)</th>
+    <th colspan="3" style="padding:5px 4px;text-align:center;font-size:9px;color:var(--text);letter-spacing:1px;font-family:'IBM Plex Mono',monospace;border-bottom:1px solid var(--border);border-right:1px solid var(--border);font-weight:700;background:rgba(0,0,0,0.03);">VNĚJŠÍ ROZMĚR (mm)</th>
     <th colspan="3" style="padding:5px 4px;text-align:center;font-size:9px;color:var(--blue);letter-spacing:1px;font-family:'IBM Plex Mono',monospace;border-bottom:1px solid var(--border);border-right:1px solid var(--border);font-weight:700;background:rgba(77,159,255,0.06);">VNITŘNÍ ROZMĚR (mm)</th>
     <th rowspan="2" style="padding:6px 4px;text-align:center;font-size:9px;color:var(--muted);letter-spacing:1px;font-family:'IBM Plex Mono',monospace;border-bottom:1px solid var(--border);border-right:1px solid var(--border);font-weight:600;width:60px;vertical-align:middle;">KG</th>
     <th rowspan="2" style="padding:6px 4px;text-align:center;font-size:9px;color:var(--muted);letter-spacing:1px;font-family:'IBM Plex Mono',monospace;border-bottom:1px solid var(--border);border-right:1px solid var(--border);font-weight:600;width:60px;vertical-align:middle;">VÍKO</th>
@@ -4229,7 +4232,7 @@ function renderBoxTypes() {
     grp.items.forEach(t => {
       const tr = document.createElement('tr');
       tr.style.cssText = 'border-bottom:1px solid var(--border);transition:background 0.1s;';
-      tr.addEventListener('mouseenter', () => tr.style.background = 'rgba(255,255,255,0.02)');
+      tr.addEventListener('mouseenter', () => tr.style.background = 'rgba(0,0,0,0.02)');
       tr.addEventListener('mouseleave', () => tr.style.background = '');
 
       // 1) Barva
@@ -4498,7 +4501,7 @@ function renderOrders() {
         position:absolute;top:100%;left:0;right:0;z-index:9999;
         background:#1a2235;border:1px solid var(--border);border-top:none;
         border-radius:0 0 6px 6px;max-height:220px;overflow-y:auto;
-        box-shadow:0 8px 24px rgba(0,0,0,0.5);display:none;
+        box-shadow:0 8px 24px rgba(15,21,18,0.18);display:none;
       `;
 
       let acTimer = null, acController = null;
@@ -4538,7 +4541,7 @@ function renderOrders() {
 
         items.forEach(item => {
           const row = document.createElement('div');
-          row.style.cssText = 'padding:8px 12px;cursor:pointer;font-size:12px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.05);transition:background 0.1s;';
+          row.style.cssText = 'padding:8px 12px;cursor:pointer;font-size:12px;color:var(--text);border-bottom:1px solid rgba(0,0,0,0.05);transition:background 0.1s;';
           row.addEventListener('mouseenter', () => row.style.background = 'rgba(77,159,255,0.15)');
           row.addEventListener('mouseleave', () => row.style.background = '');
 
@@ -4803,7 +4806,7 @@ function renderOrders() {
         const addBtn = document.createElement('button');
         addBtn.innerHTML = '+ Typ';
         addBtn.style.cssText = `padding:4px 10px;border-radius:6px;font-size:10px;cursor:pointer;
-          border:1px dashed var(--border);background:rgba(255,255,255,0.04);color:var(--muted);
+          border:1px dashed var(--border);background:rgba(0,0,0,0.04);color:var(--muted);
           font-family:'IBM Plex Mono',monospace;white-space:nowrap;`;
 
         addBtn.addEventListener('click', (e) => {
@@ -4827,7 +4830,7 @@ function renderOrders() {
           const ddH = openUp ? Math.min(MAX_DD_H, spaceAbove - MARGIN) : Math.min(MAX_DD_H, spaceBelow - MARGIN);
           dd.style.cssText = `position:fixed;top:${topPx}px;left:${rect.left}px;z-index:9999;
             background:var(--panel);border:1px solid var(--border);border-radius:8px;
-            box-shadow:0 8px 24px rgba(0,0,0,0.5);min-width:300px;max-height:${ddH}px;
+            box-shadow:0 8px 24px rgba(15,21,18,0.18);min-width:300px;max-height:${ddH}px;
             display:flex;flex-direction:column;`;
 
           // Vyhledávací pole — našeptávač
@@ -4889,7 +4892,7 @@ function renderOrders() {
                 item.innerHTML = `<span style="width:10px;height:10px;border-radius:2px;background:${bt.color};flex-shrink:0;display:inline-block;"></span>
                   <span style="flex:1;color:var(--text);">${bt.name}</span>
                   <span style="font-size:9px;color:var(--muted);font-family:'IBM Plex Mono',monospace;">v ${bt.h}mm · ${bt.kg||'?'}kg</span>`;
-                item.addEventListener('mouseenter', () => item.style.background = 'rgba(255,255,255,0.06)');
+                item.addEventListener('mouseenter', () => item.style.background = 'rgba(0,0,0,0.06)');
                 item.addEventListener('mouseleave', () => item.style.background = '');
                 item.addEventListener('click', () => {
                   addr.boxes[bt.id] = 1;
@@ -5058,7 +5061,7 @@ function openNestingDialog() {
     const rotInfo = p.rot === 90 ? `<span style="color:var(--muted);font-size:9px;">↻ otočen 90°</span>` : '';
 
     return `
-      <tr data-key="${key}" style="border-bottom:1px solid rgba(255,255,255,0.05);">
+      <tr data-key="${key}" style="border-bottom:1px solid rgba(0,0,0,0.05);">
         <td style="padding:8px 10px;width:22px;">
           <input type="checkbox" id="nc_${key}" ${checked ? 'checked' : ''}
             style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent);">
@@ -5100,7 +5103,7 @@ function openNestingDialog() {
       <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;overflow:hidden;overflow-y:auto;max-height:50vh;">
         <table style="width:100%;border-collapse:collapse;">
           <thead>
-            <tr style="background:rgba(255,255,255,0.04);font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:0.5px;">
+            <tr style="background:rgba(0,0,0,0.04);font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:0.5px;">
               <th style="padding:6px 10px;text-align:left;">POVOL</th>
               <th style="padding:6px 0;text-align:left;">KOMBINACE</th>
               <th style="padding:6px 10px;text-align:right;">KS</th>
@@ -6036,7 +6039,7 @@ function showVariantSelectModal(variants, inlineTarget) {
           <div style="position:relative;">
             <canvas id="miniPlan_${v.id}"
               width="220" height="50"
-              style="display:block;border-radius:4px;border:1px solid var(--border);background:#0d1117;cursor:pointer;"
+              style="display:block;border-radius:4px;border:1px solid var(--border);background:var(--canvas-bg);cursor:pointer;"
               title="Půdorys nakládky — varianta ${v.id}">
             </canvas>
             <div style="font-size:8px;color:var(--muted);text-align:center;margin-top:2px;font-family:'IBM Plex Mono',monospace;">
@@ -6122,7 +6125,7 @@ function showVariantSelectModal(variants, inlineTarget) {
         </table>
       </div>`;
     inlineTarget.querySelectorAll('.vrow').forEach(tr => {
-      tr.addEventListener('mouseenter', () => tr.style.background = 'rgba(255,255,255,0.04)');
+      tr.addEventListener('mouseenter', () => tr.style.background = 'rgba(0,0,0,0.04)');
       tr.addEventListener('mouseleave', () => tr.style.background = '');
     });
     requestAnimationFrame(() => { variants.forEach(v => drawMiniPlan(v)); try { inlineTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (e) {} });
@@ -6176,7 +6179,7 @@ function showVariantSelectModal(variants, inlineTarget) {
 
   // Hover effect
   modal.querySelectorAll('.vrow').forEach(tr => {
-    tr.addEventListener('mouseenter', () => tr.style.background = 'rgba(255,255,255,0.04)');
+    tr.addEventListener('mouseenter', () => tr.style.background = 'rgba(0,0,0,0.04)');
     tr.addEventListener('mouseleave', () => tr.style.background = '');
   });
 
@@ -6211,7 +6214,7 @@ function drawMiniPlan(variant) {
   const sy = y => margin + y * scaleY;
 
   // Background
-  ctx.fillStyle = '#0d1117';
+  ctx.fillStyle = '#f6f8f4';
   ctx.fillRect(0, 0, cw, ch);
 
   // Truck outline
@@ -8043,7 +8046,7 @@ async function showDistributionMap() {
             style="background:transparent;border:none;color:var(--muted);font-size:20px;cursor:pointer;">×</button>
         </div>
       </div>
-      <div id="distMapCanvas" style="height:42vh;width:100%;background:rgba(255,255,255,0.03);"></div>
+      <div id="distMapCanvas" style="height:42vh;width:100%;background:rgba(0,0,0,0.03);"></div>
       <div id="distMapNote" style="padding:8px 16px;font-size:11px;color:var(--muted);"></div>
       <div style="overflow-y:auto;padding:12px 16px;flex:1;">
         <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Co která souprava veze a kam (v pořadí rozvozu z Bruntálu):</div>
@@ -8222,21 +8225,21 @@ function renderResults() {
   // ── Změna vozidla přímo z výsledků (přepočítá celý plán na vybraný typ) ──
   vList.insertAdjacentHTML('beforeend', `
     <button onclick="changeVehicleFromResults()" style="width:100%;margin-bottom:12px;padding:10px 12px;
-      border-radius:8px;border:1px dashed var(--border);background:rgba(255,255,255,0.03);
+      border-radius:8px;border:1px dashed var(--border);background:rgba(0,0,0,0.03);
       color:var(--accent);cursor:pointer;font-size:13px;font-weight:600;display:flex;
       align-items:center;justify-content:center;gap:8px;transition:all 0.15s;"
       onmouseover="this.style.borderColor='var(--accent)';this.style.background='rgba(240,192,64,0.08)';"
-      onmouseout="this.style.borderColor='var(--border)';this.style.background='rgba(255,255,255,0.03)';">
+      onmouseout="this.style.borderColor='var(--border)';this.style.background='rgba(0,0,0,0.03)';">
       🔄 Změnit vozidlo &nbsp;<span style="font-size:10px;color:var(--muted);font-weight:400;">přepočítá celý plán</span>
     </button>`);
 
   vList.insertAdjacentHTML('beforeend', `
     <button onclick="showDistributionMap()" style="width:100%;margin-bottom:14px;padding:10px 12px;
-      border-radius:8px;border:1px dashed var(--border);background:rgba(255,255,255,0.03);
+      border-radius:8px;border:1px dashed var(--border);background:rgba(0,0,0,0.03);
       color:var(--green);cursor:pointer;font-size:13px;font-weight:600;display:flex;
       align-items:center;justify-content:center;gap:8px;transition:all 0.15s;"
       onmouseover="this.style.borderColor='var(--green)';this.style.background='rgba(61,214,140,0.08)';"
-      onmouseout="this.style.borderColor='var(--border)';this.style.background='rgba(255,255,255,0.03)';">
+      onmouseout="this.style.borderColor='var(--border)';this.style.background='rgba(0,0,0,0.03)';">
       📦 Distribuce &amp; trasy &nbsp;<span style="font-size:10px;color:var(--muted);font-weight:400;">co kam + mapa</span>
     </button>`);
 
@@ -8397,11 +8400,11 @@ function renderResults() {
             <div style="font-size:10px;color:var(--muted);">${avA.units.length} boxů · ${mA.totalKg} kg</div>
             <div style="font-size:9px;color:var(--muted);font-family:'IBM Plex Mono',monospace;">Rozměry: X ${vehA.L/1000} × Y ${vehA.W/1000} × Z ${vehA.H/1000} m</div>
             <div style="font-size:10px;color:var(--muted);margin-top:3px;">Délka nákladu: <b style="color:var(--text)">${(mA.usedLen/1000).toFixed(2)}m</b> / ${vehA.L/1000}m (${mA.fillPct}%)</div>
-            <div style="height:4px;background:rgba(255,255,255,0.08);border-radius:2px;margin-top:3px;overflow:hidden;"><div style="height:100%;width:${Math.min(100,mA.fillPct)}%;background:${mA.fillPct>90?'var(--red)':mA.fillPct>70?'var(--orange)':'#4a7ab5'};"></div></div>
+            <div style="height:4px;background:rgba(0,0,0,0.08);border-radius:2px;margin-top:3px;overflow:hidden;"><div style="height:100%;width:${Math.min(100,mA.fillPct)}%;background:${mA.fillPct>90?'var(--red)':mA.fillPct>70?'var(--orange)':'#4a7ab5'};"></div></div>
             <div style="font-size:10px;color:var(--muted);margin-top:5px;">Naloženo objemem: <b style="color:var(--text)">${mA.volFill}%</b></div>
-            <div style="height:4px;background:rgba(255,255,255,0.08);border-radius:2px;margin-top:3px;overflow:hidden;"><div style="height:100%;width:${Math.min(100,mA.volFill)}%;background:${mA.effGrade.c};"></div></div>
+            <div style="height:4px;background:rgba(0,0,0,0.08);border-radius:2px;margin-top:3px;overflow:hidden;"><div style="height:100%;width:${Math.min(100,mA.volFill)}%;background:${mA.effGrade.c};"></div></div>
             <div style="font-size:10px;color:var(--muted);margin-top:5px;">Hmotnost: <b style="color:var(--text)">${mA.kgPct}%</b> · hustota <b style="color:var(--text)">${mA.spaceEff}%</b></div>
-            <div style="height:4px;background:rgba(255,255,255,0.08);border-radius:2px;margin-top:3px;overflow:hidden;"><div style="height:100%;width:${Math.min(100,mA.kgPct)}%;background:var(--blue,#4d9fff);"></div></div>
+            <div style="height:4px;background:rgba(0,0,0,0.08);border-radius:2px;margin-top:3px;overflow:hidden;"><div style="height:100%;width:${Math.min(100,mA.kgPct)}%;background:var(--blue,#4d9fff);"></div></div>
           </div>
 
           <!-- VLEK -->
@@ -8414,11 +8417,11 @@ function renderResults() {
             <div style="font-size:10px;color:var(--muted);">${avT.units.length} boxů · ${mT.totalKg} kg</div>
             <div style="font-size:9px;color:var(--muted);font-family:'IBM Plex Mono',monospace;">Rozměry: X ${vehT.L/1000} × Y ${vehT.W/1000} × Z ${vehT.H/1000} m</div>
             <div style="font-size:10px;color:var(--muted);margin-top:3px;">Délka nákladu: <b style="color:var(--text)">${(mT.usedLen/1000).toFixed(2)}m</b> / ${vehT.L/1000}m (${mT.fillPct}%)</div>
-            <div style="height:4px;background:rgba(255,255,255,0.08);border-radius:2px;margin-top:3px;overflow:hidden;"><div style="height:100%;width:${Math.min(100,mT.fillPct)}%;background:${mT.fillPct>90?'var(--red)':mT.fillPct>70?'var(--orange)':'#7a8aaa'};"></div></div>
+            <div style="height:4px;background:rgba(0,0,0,0.08);border-radius:2px;margin-top:3px;overflow:hidden;"><div style="height:100%;width:${Math.min(100,mT.fillPct)}%;background:${mT.fillPct>90?'var(--red)':mT.fillPct>70?'var(--orange)':'#7a8aaa'};"></div></div>
             <div style="font-size:10px;color:var(--muted);margin-top:5px;">Naloženo objemem: <b style="color:var(--text)">${mT.volFill}%</b></div>
-            <div style="height:4px;background:rgba(255,255,255,0.08);border-radius:2px;margin-top:3px;overflow:hidden;"><div style="height:100%;width:${Math.min(100,mT.volFill)}%;background:${mT.effGrade.c};"></div></div>
+            <div style="height:4px;background:rgba(0,0,0,0.08);border-radius:2px;margin-top:3px;overflow:hidden;"><div style="height:100%;width:${Math.min(100,mT.volFill)}%;background:${mT.effGrade.c};"></div></div>
             <div style="font-size:10px;color:var(--muted);margin-top:5px;">Hmotnost: <b style="color:var(--text)">${mT.kgPct}%</b> · hustota <b style="color:var(--text)">${mT.spaceEff}%</b></div>
-            <div style="height:4px;background:rgba(255,255,255,0.08);border-radius:2px;margin-top:3px;overflow:hidden;"><div style="height:100%;width:${Math.min(100,mT.kgPct)}%;background:var(--blue,#4d9fff);"></div></div>
+            <div style="height:4px;background:rgba(0,0,0,0.08);border-radius:2px;margin-top:3px;overflow:hidden;"><div style="height:100%;width:${Math.min(100,mT.kgPct)}%;background:var(--blue,#4d9fff);"></div></div>
           </div>
         </div>`;
 
@@ -8708,7 +8711,7 @@ function renderPlanView() {
       </tr>`;
     }).join('');
     checklistHTML = `
-      <div class="box-checklist" style="flex:0 0 250px;max-width:250px;border:1px solid var(--border);border-radius:5px;background:var(--panel,rgba(255,255,255,0.02));padding:9px 8px;align-self:flex-start;">
+      <div class="box-checklist" style="flex:0 0 250px;max-width:250px;border:1px solid var(--border);border-radius:5px;background:var(--panel,rgba(0,0,0,0.02));padding:9px 8px;align-self:flex-start;">
         <div style="font-size:12px;font-weight:700;color:var(--text);margin:0 0 4px;">🚛 Auto #${vehNo}<span style="font-size:9px;font-weight:400;color:var(--muted);"> z ${cl.vehCount}</span></div>
         <div style="margin:4px 0 8px;padding:5px 6px;border-radius:4px;background:rgba(240,192,64,0.08);border:1px solid var(--border);">
           <div style="font-size:8.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px;">Auto obsahuje</div>
@@ -8850,14 +8853,14 @@ function renderPlanView() {
               }
             })()}
             <div style="width:100%;height:340px;flex:0 0 340px;position:relative;">
-               <div id="threeContainer" style="width:100%;height:100%;border:1px solid rgba(120,140,180,0.5);border-radius:8px;background:#0d1117;overflow:hidden;position:relative;"></div>
+               <div id="threeContainer" style="width:100%;height:100%;border:1px solid rgba(120,140,180,0.5);border-radius:8px;background:var(--canvas-bg);overflow:hidden;position:relative;"></div>
                <button onclick="currentView='3d';renderPlanView();" title="Zvětšit na celé okno"
-                       style="position:absolute;top:10px;right:10px;z-index:10;background:rgba(13,17,23,0.85);border:1px solid rgba(120,140,180,0.55);color:rgba(255,255,255,0.9);padding:6px 12px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600;letter-spacing:0.3px;font-family:'IBM Plex Mono',monospace;backdrop-filter:blur(4px);transition:background 0.15s;"
+                       style="position:absolute;top:10px;right:10px;z-index:10;background:rgba(255,255,255,0.85);border:1px solid rgba(120,140,180,0.55);color:rgba(15,21,18,0.9);padding:6px 12px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600;letter-spacing:0.3px;font-family:'IBM Plex Mono',monospace;backdrop-filter:blur(4px);transition:background 0.15s;"
                        onmouseover="this.style.background='rgba(77,159,255,0.25)'" onmouseout="this.style.background='rgba(13,17,23,0.85)'">
                  ⛶ PLNÝ 3D POHLED
                </button>
              </div>
-             <div id="planCanvasBox" style="flex:1 1 auto;min-height:560px;padding:12px;border:1px solid var(--border);border-radius:8px;background:#0d1117;display:flex;align-items:flex-start;justify-content:center;overflow:auto;">
+             <div id="planCanvasBox" style="flex:1 1 auto;min-height:560px;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--canvas-bg);display:flex;align-items:flex-start;justify-content:center;overflow:auto;">
                <canvas id="planCanvas" style="max-width:100%;"></canvas>
              </div>`
       }
@@ -9071,7 +9074,7 @@ function _toast(msg, bad) {
   t.textContent = msg;
   t.style.cssText = `position:fixed;left:50%;bottom:30px;transform:translateX(-50%);z-index:10000;
     background:${bad ? 'rgba(220,80,80,0.95)' : 'rgba(40,40,46,0.96)'};color:#fff;padding:10px 16px;
-    border-radius:8px;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,0.5);max-width:80vw;`;
+    border-radius:8px;font-size:13px;box-shadow:0 8px 24px rgba(15,21,18,0.18);max-width:80vw;`;
   document.body.appendChild(t);
   setTimeout(() => t.remove(), 2800);
 }
@@ -9182,7 +9185,7 @@ function showBoxActionMenu(ev, box) {
   window._amBox = box;
   const btn = (label, fn, dis) => `<button onclick="${fn}" ${dis ? 'disabled' : ''}
     style="text-align:left;padding:7px 10px;border-radius:6px;border:1px solid var(--border);
-    background:${dis ? 'transparent' : 'rgba(255,255,255,0.03)'};color:${dis ? 'var(--muted)' : 'var(--text)'};
+    background:${dis ? 'transparent' : 'rgba(0,0,0,0.03)'};color:${dis ? 'var(--muted)' : 'var(--text)'};
     cursor:${dis ? 'default' : 'pointer'};font-size:12px;white-space:nowrap;">${label}</button>`;
   const m = document.createElement('div');
   m.id = 'boxActionMenu';
@@ -9669,11 +9672,11 @@ function drawPlan(av, veh) {
   // ── PALETA (barevně / černobíle) ──
   const BW = _bwMode;
   const PAL = {
-    bg:    BW ? '#ffffff' : '#141a25',
-    grid:  BW ? '#e2e2e2' : '#1e2840',
-    line:  BW ? '#000000' : '#3a4560',
+    bg:    BW ? '#ffffff' : '#f6f8f4',
+    grid:  BW ? '#e2e2e2' : '#e2e7df',
+    line:  BW ? '#000000' : '#a9b3a5',
     text:  BW ? '#111111' : 'rgba(0,0,0,0.85)',
-    dim:   BW ? '#000000' : 'rgba(255,220,80,0.95)',
+    dim:   BW ? '#000000' : 'rgba(150,110,10,0.95)',
   };
   // V černobílém režimu rozliš zastávky odstíny šedi (světlejší = pozdější vykládka)
   const grayForStop = si => { const g = [210, 170, 130, 95, 60][(si||0) % 5]; return `rgb(${g},${g},${g})`; };
@@ -9877,7 +9880,7 @@ function drawPlan(av, veh) {
     if (hasNested) {
       ctx.save();
       ctx.beginPath(); ctx.rect(rx, ry, rw, rh); ctx.clip();
-      ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth = 1;
       for (let i = -rh; i < rw + rh; i += 8) {
         ctx.beginPath(); ctx.moveTo(rx+i, ry); ctx.lineTo(rx+i+rh, ry+rh); ctx.stroke();
       }
@@ -9949,7 +9952,7 @@ function drawPlan(av, veh) {
 
     // Rotation indicator
     if (b.rot === 90 && rw > 16 && rh > 10) {
-      ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.font = '9px IBM Plex Mono';
+      ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.font = '9px IBM Plex Mono';
       ctx.textAlign = 'left'; ctx.textBaseline = 'top';
       ctx.fillText('↻', rx+2, ry+2);
     }
@@ -9994,7 +9997,7 @@ function drawPlan(av, veh) {
     ctx.font = `bold ${fs}px IBM Plex Mono, monospace`;
     if (rw > 24 && rh > 14) {
       const mtW = ctx.measureText(mainTxt).width;
-      ctx.fillStyle = BW ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.55)';
+      ctx.fillStyle = BW ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.5)';
       ctx.fillRect(rx+rw/2 - mtW/2 - 4, labelCY - fs*0.62, mtW + 8, fs*1.24);
       ctx.fillStyle = BW ? '#000' : 'rgba(0,0,0,0.92)';
       ctx.fillText(mainTxt, rx+rw/2, labelCY);
@@ -10259,7 +10262,7 @@ function drawPlan(av, veh) {
   }
 
   // Legend: nesting explained
-  ctx.fillStyle = BW ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.25)';
+  ctx.fillStyle = BW ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.25)';
   ctx.font = '9px IBM Plex Sans';
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
   ctx.fillText('⬇ = vnořené bedny   N × rozměr = počet × délka(m)', 8, 14);
@@ -10301,7 +10304,7 @@ function init3D(av, veh) {
 
   // ── Scéna ──
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0d1117);
+  scene.background = new THREE.Color(0xf6f8f4);
 
   const camera = new THREE.PerspectiveCamera(45, W / H, 0.01, 500);
 
@@ -10549,7 +10552,7 @@ function setupEventListeners() {
     dd.className = 'veh-picker-dd';
     dd.style.cssText = `position:fixed;z-index:9999;background:var(--panel);
       border:1px solid var(--border);border-radius:8px;
-      box-shadow:0 8px 24px rgba(0,0,0,0.5);min-width:300px;max-height:400px;
+      box-shadow:0 8px 24px rgba(15,21,18,0.18);min-width:300px;max-height:400px;
       overflow-y:auto;padding:4px 0;`;
     const hdr = document.createElement('div');
     hdr.style.cssText = 'padding:8px 12px 4px;font-size:9px;color:var(--muted);font-family:"IBM Plex Mono",monospace;letter-spacing:1px;border-bottom:1px solid var(--border);margin-bottom:4px;';
@@ -10572,7 +10575,7 @@ function setupEventListeners() {
               : `${(preset.L/1000).toFixed(1)} × ${(preset.W/1000).toFixed(1)} × ${(preset.H/1000).toFixed(1)}m · ${(preset.maxKg/1000).toFixed(0)}t`}
           </div>
         </div>`;
-      item.addEventListener('mouseenter', () => item.style.background = 'rgba(255,255,255,0.06)');
+      item.addEventListener('mouseenter', () => item.style.background = 'rgba(0,0,0,0.06)');
       item.addEventListener('mouseleave', () => item.style.background = '');
       item.addEventListener('click', () => {
         fleet.push({ ...preset, id: nextId++ });
@@ -11135,7 +11138,7 @@ function openNewOrderModal() {
   const dlg = document.createElement('div');
   dlg.style.cssText = `background:var(--panel);border:1px solid var(--border);border-radius:12px;
     width:min(1520px,96vw);height:min(920px,92vh);display:flex;flex-direction:column;
-    box-shadow:0 18px 60px rgba(0,0,0,0.65);overflow:hidden;`;
+    box-shadow:0 18px 60px rgba(15,21,18,0.25);overflow:hidden;`;
 
   const INP = `background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;
     padding:8px 10px;font-size:13px;font-family:'IBM Plex Sans',sans-serif;outline:none;box-sizing:border-box;width:100%;`;
@@ -11200,7 +11203,7 @@ function openNewOrderModal() {
       row.innerHTML = `<span style="width:10px;height:10px;border-radius:2px;background:${bt.color};flex-shrink:0;"></span>
         <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11.5px;font-family:'IBM Plex Mono',monospace;color:var(--text);">${esc(bt.name)}</span>
         <span style="flex-shrink:0;font-size:9.5px;color:var(--muted);font-family:'IBM Plex Mono',monospace;">${bt.l}×${bt.w}×${bt.h}</span>`;
-      row.addEventListener('mouseenter', () => { row.style.background = 'rgba(255,255,255,0.05)'; row.style.borderColor = bt.color; });
+      row.addEventListener('mouseenter', () => { row.style.background = 'rgba(0,0,0,0.05)'; row.style.borderColor = bt.color; });
       row.addEventListener('mouseleave', () => { row.style.background = ''; row.style.borderColor = 'var(--border)'; });
       row.addEventListener('click', () => { lines.push({ bt, qty: 1, ral: null, serials: '' }); renderLines(); });
       grid.appendChild(row);
@@ -12674,7 +12677,7 @@ function renderProtocol(av, veh) {
       </div>
     </div>
     <!-- Souhrn objednávky -->
-    <div id="orderSummaryBlock" style="padding:10px 14px;border-bottom:1px solid var(--border);background:rgba(255,255,255,0.02);">
+    <div id="orderSummaryBlock" style="padding:10px 14px;border-bottom:1px solid var(--border);background:rgba(0,0,0,0.02);">
       <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:8px;">▶ ZADANÁ OBJEDNÁVKA</div>
       <div id="orderSummaryContent" style="font-size:10px;font-family:'IBM Plex Mono',monospace;line-height:1.6;"></div>
     </div>
@@ -12754,7 +12757,7 @@ function renderProtocol(av, veh) {
       </td></tr>`;
     }
 
-    const rowBg = n % 2 === 0 ? 'rgba(255,255,255,0.02)' : '';
+    const rowBg = n % 2 === 0 ? 'rgba(0,0,0,0.02)' : '';
     const warnStr = warnings.join('; ');
     const variantId = variantInfo ? variantInfo.id : '—';
 
@@ -12765,7 +12768,7 @@ function renderProtocol(av, veh) {
     plainText += `${(b.rot===90?'↻90°':'—').padEnd(5)} ${String(b.stopIdx+1).padEnd(4)} ${(isOnFloor?'ANO':'NE').padEnd(5)} ${(isStacked?'ANO':'NE').padEnd(5)} ${warnStr}\n`;
 
     html += `
-      <tr style="background:${rowBg};border-bottom:1px solid rgba(255,255,255,0.03);">
+      <tr style="background:${rowBg};border-bottom:1px solid rgba(0,0,0,0.03);">
         <td style="padding:3px 6px;color:var(--muted);">${n++}</td>
         <td style="padding:3px 6px;font-weight:600;">
           <span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:${b.color};margin-right:3px;vertical-align:middle;"></span>${bt.name}
@@ -15707,7 +15710,7 @@ function exportStressCsv() {
 
   // ── Render půdorysu vrstvy (editovatelný nebo náhled) ──
   function topViewHTML(layer, cell, editable){
-    var html='<div data-layer="'+layer+'" class="tv-grid'+(editable?' tv-edit':'')+'" style="position:relative;width:'+(L*cell)+'px;height:'+(W*cell)+'px;background:#0d1117;border:1px solid #30363d;border-radius:4px;'+(editable?'cursor:crosshair;':'')+'">';
+    var html='<div data-layer="'+layer+'" class="tv-grid'+(editable?' tv-edit':'')+'" style="position:relative;width:'+(L*cell)+'px;height:'+(W*cell)+'px;background:var(--canvas-bg);border:1px solid var(--border);border-radius:4px;'+(editable?'cursor:crosshair;':'')+'">';
     // mřížka
     for(var x=0;x<=L;x++) html+='<div style="position:absolute;left:'+(x*cell)+'px;top:0;width:1px;height:'+(W*cell)+'px;background:#1c2330;"></div>';
     for(var y=0;y<=W;y++) html+='<div style="position:absolute;left:0;top:'+(y*cell)+'px;width:'+(L*cell)+'px;height:1px;background:#1c2330;"></div>';
@@ -15720,7 +15723,7 @@ function exportStressCsv() {
   }
   // ── Boční pohled: X(délka) × vrstva(výška). Pro každý (x,vrstva) barva = co tam je (přes šířku); více barev → pruh ──
   function sideViewHTML(cell){
-    var html='<div style="position:relative;width:'+(L*cell)+'px;height:'+(LAYERS*cell)+'px;background:#0d1117;border:1px solid #30363d;border-radius:4px;">';
+    var html='<div style="position:relative;width:'+(L*cell)+'px;height:'+(LAYERS*cell)+'px;background:var(--canvas-bg);border:1px solid var(--border);border-radius:4px;">';
     for(var x=0;x<=L;x++) html+='<div style="position:absolute;left:'+(x*cell)+'px;top:0;width:1px;height:'+(LAYERS*cell)+'px;background:#1c2330;"></div>';
     for(var z=0;z<=LAYERS;z++) html+='<div style="position:absolute;left:0;top:'+(z*cell)+'px;width:'+(L*cell)+'px;height:1px;background:#1c2330;"></div>';
     for(var lr=0;lr<LAYERS;lr++){ var m=cellMap(lr);
@@ -15760,7 +15763,7 @@ function exportStressCsv() {
     var Wd=(maxX-minX)+2*pad, Ht=(maxY-minY)+2*pad, ox=-minX+pad, oy=-minY+pad;
     function PT(tx,ty,z){ var p=pr(tx,ty,z); return (ox+p[0]).toFixed(1)+','+(oy+p[1]).toFixed(1); }
     function shade(hex,f){ var n=parseInt(hex.slice(1),16); return 'rgb('+Math.round(((n>>16)&255)*f)+','+Math.round(((n>>8)&255)*f)+','+Math.round((n&255)*f)+')'; }
-    var svg='<svg viewBox="0 0 '+Wd.toFixed(0)+' '+Ht.toFixed(0)+'" style="width:100%;height:auto;background:#0d1117;border:1px solid #30363d;border-radius:4px;">';
+    var svg='<svg viewBox="0 0 '+Wd.toFixed(0)+' '+Ht.toFixed(0)+'" style="width:100%;height:auto;background:var(--canvas-bg);border:1px solid var(--border);border-radius:4px;">';
     var f0=tf(0,0),f1=tf(L,0),f2=tf(L,W),f3=tf(0,W);
     svg+='<polygon points="'+PT(f0[0],f0[1],0)+' '+PT(f1[0],f1[1],0)+' '+PT(f2[0],f2[1],0)+' '+PT(f3[0],f3[1],0)+'" fill="#11161f" stroke="#263041" stroke-width="1"/>';
     cells.forEach(function(c){ var col=COLORS[c.color], z0=c.z, z1=c.z+1;
@@ -15776,9 +15779,9 @@ function exportStressCsv() {
 
   function render(modal){
     var c=st.cur;
-    var pal = Object.keys(SHAPES).map(function(s){ return '<button data-shape="'+s+'" style="font-size:11px;padding:5px 8px;border-radius:5px;cursor:pointer;border:1px solid '+(c.shape===s&&!c.erase?'#e3b341':'#30363d')+';background:'+(c.shape===s&&!c.erase?'rgba(227,179,65,.2)':'#21262d')+';color:#e6edf3;">'+s+'</button>'; }).join('');
+    var pal = Object.keys(SHAPES).map(function(s){ return '<button data-shape="'+s+'" style="font-size:11px;padding:5px 8px;border-radius:5px;cursor:pointer;border:1px solid '+(c.shape===s&&!c.erase?'#e3b341':'var(--border)')+';background:'+(c.shape===s&&!c.erase?'rgba(227,179,65,.2)':'var(--panel2)')+';color:var(--text);">'+s+'</button>'; }).join('');
     var cols = COLORS.map(function(col,i){ return '<button data-color="'+i+'" title="'+CNAME[i]+'" style="width:26px;height:26px;border-radius:5px;cursor:pointer;border:2px solid '+(c.color===i&&!c.erase?'#fff':'transparent')+';background:'+col+';"></button>'; }).join('');
-    var lays = [2,1,0].map(function(lr){ return '<button data-setlayer="'+lr+'" style="font-size:11px;padding:5px 9px;border-radius:5px;cursor:pointer;border:1px solid '+(c.layer===lr?'#3b82f6':'#30363d')+';background:'+(c.layer===lr?'rgba(59,130,246,.25)':'#21262d')+';color:#e6edf3;">Vrstva '+(lr+1)+'</button>'; }).join('');
+    var lays = [2,1,0].map(function(lr){ return '<button data-setlayer="'+lr+'" style="font-size:11px;padding:5px 9px;border-radius:5px;cursor:pointer;border:1px solid '+(c.layer===lr?'#3b82f6':'var(--border)')+';background:'+(c.layer===lr?'rgba(59,130,246,.25)':'var(--panel2)')+';color:var(--text);">Vrstva '+(lr+1)+'</button>'; }).join('');
     var cell=26, mini=14;
     var thumbs = [2,1,0].map(function(lr){ return '<div style="text-align:center;"><div style="font-size:9px;color:#7d8590;margin-bottom:2px;">Vrstva '+(lr+1)+(lr===c.layer?' ✏':'')+'</div>'+topViewHTML(lr,mini,false)+'</div>'; }).join('');
     var ex=loadEx();
@@ -15787,9 +15790,9 @@ function exportStressCsv() {
       '<div>'+
         '<div style="font-size:11px;color:#7d8590;margin-bottom:4px;">Kostka:</div><div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px;">'+pal+'</div>'+
         '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">'+
-          '<button id="trOrient" style="font-size:11px;padding:5px 8px;border-radius:5px;cursor:pointer;border:1px solid #30363d;background:#21262d;color:#e6edf3;">↻ '+(c.orient==='l'?'na délku':'na šířku')+'</button>'+
+          '<button id="trOrient" style="font-size:11px;padding:5px 8px;border-radius:5px;cursor:pointer;border:1px solid var(--border);background:var(--panel2);color:var(--text);">↻ '+(c.orient==='l'?'na délku':'na šířku')+'</button>'+
           '<div style="display:flex;gap:5px;">'+cols+'</div>'+
-          '<button data-erase="1" style="font-size:11px;padding:5px 8px;border-radius:5px;cursor:pointer;border:1px solid '+(c.erase?'#f85149':'#30363d')+';background:'+(c.erase?'rgba(248,81,73,.2)':'#21262d')+';color:#e6edf3;">🧽 Guma</button>'+
+          '<button data-erase="1" style="font-size:11px;padding:5px 8px;border-radius:5px;cursor:pointer;border:1px solid '+(c.erase?'#f85149':'var(--border)')+';background:'+(c.erase?'rgba(248,81,73,.2)':'var(--panel2)')+';color:var(--text);">🧽 Guma</button>'+
         '</div>'+
         '<div style="font-size:10px;color:#7d8590;margin-bottom:6px;line-height:1.6;">Pořadí vykládky (dřív doručená jede blíž ke dveřím): '+
           '<span style="color:#22c55e;font-weight:700;">■</span> zelená = 1. (první) → <b>dveře</b>&nbsp;&nbsp;'+
@@ -15810,10 +15813,10 @@ function exportStressCsv() {
         '<div style="display:flex;flex-direction:column;gap:8px;">'+thumbs+'</div>'+
       '</div>'+
     '</div>'+
-    '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;border-top:1px solid #30363d;padding-top:10px;">'+
-      '<input id="trNote" placeholder="poznámka k příkladu (volitelné)" style="flex:1;min-width:160px;font-size:12px;padding:7px;border-radius:6px;border:1px solid #30363d;background:#0d1117;color:#e6edf3;">'+
+    '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;border-top:1px solid var(--border);padding-top:10px;">'+
+      '<input id="trNote" placeholder="poznámka k příkladu (volitelné)" style="flex:1;min-width:160px;font-size:12px;padding:7px;border-radius:6px;border:1px solid var(--border);background:var(--canvas-bg);color:var(--text);">'+
       '<button id="trSave" style="font-size:12px;font-weight:700;padding:7px 12px;border-radius:6px;cursor:pointer;border:1px solid #3fb950;background:rgba(63,185,80,.2);color:#3fb950;">💾 Uložit příklad (pak nové)</button>'+
-      '<button id="trClearBoard" style="font-size:12px;padding:7px 10px;border-radius:6px;cursor:pointer;border:1px solid #30363d;background:#21262d;color:#e6edf3;">🗑 Smazat plochu</button>'+
+      '<button id="trClearBoard" style="font-size:12px;padding:7px 10px;border-radius:6px;cursor:pointer;border:1px solid var(--border);background:var(--panel2);color:var(--text);">🗑 Smazat plochu</button>'+
       '<button id="trExport" style="font-size:12px;padding:7px 10px;border-radius:6px;cursor:pointer;border:1px solid #3b82f6;background:transparent;color:#3b82f6;">⬇ Exportovat ('+ex.length+')</button>'+
       '<button id="trClearSaved" style="font-size:12px;padding:7px 10px;border-radius:6px;cursor:pointer;border:1px solid #f85149;background:transparent;color:#f85149;">🗑 Vymazat uložené ('+ex.length+')</button>'+
     '</div>'+
@@ -15843,8 +15846,8 @@ function exportStressCsv() {
   function openTrainer(){
     var modal=document.getElementById('trainerModal'); if(modal) modal.remove();
     modal=document.createElement('div'); modal.id='trainerModal'; modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding:18px;overflow:auto;';
-    modal.innerHTML='<div style="background:#161b22;border:1px solid #30363d;border-radius:10px;max-width:860px;width:100%;padding:18px;">'+
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><div style="font-size:15px;font-weight:700;color:#e6edf3;">🎓 Trenér skládání — ukaž správný příklad</div><button id="trClose" style="font-size:12px;padding:6px 10px;border-radius:6px;border:1px solid #30363d;background:#21262d;color:#e6edf3;cursor:pointer;">Zavřít</button></div>'+
+    modal.innerHTML='<div style="background:var(--panel);border:1px solid var(--border);border-radius:10px;max-width:860px;width:100%;padding:18px;">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><div style="font-size:15px;font-weight:700;color:var(--text);">🎓 Trenér skládání — ukaž správný příklad</div><button id="trClose" style="font-size:12px;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--panel2);color:var(--text);cursor:pointer;">Zavřít</button></div>'+
       '<div id="trBody"></div></div>';
     document.body.appendChild(modal);
     modal.querySelector('#trClose').onclick=function(){ modal.remove(); };
