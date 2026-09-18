@@ -802,8 +802,8 @@ canvas { display: block; }
     <button class="tab" data-page="pageGuide" style="border-color:var(--green,#3dd68c);color:var(--green,#3dd68c);" title="Návod – jak appku používat">❓ Návod</button>
   </div>
   <div style="margin-left:auto;display:flex;gap:6px;align-items:center;">
-    <!-- 1. Primární akce: Nová objednávka -->
-    <button onclick="newOrder()" title="Vymazat vše a začít novou objednávku načisto"
+    <!-- 1. Primární akce: Nová objednávka (velké okno). Mazání vše-načisto je v menu 💾 Plán. -->
+    <button onclick="openNewOrderModal()" title="Založit novou objednávku ve velkém okně (nic nemaže)"
       style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;padding:7px 14px;border-radius:4px;cursor:pointer;border:1px solid var(--accent);color:#000;background:var(--accent);font-weight:700;text-transform:uppercase;transition:all 0.15s;white-space:nowrap;">➕ Nová</button>
 
     <!-- 2. Dropdown Plán: ukládání/načítání/historie -->
@@ -820,6 +820,8 @@ canvas { display: block; }
         <button id="saveToHistoryBtn" onclick="if(typeof saveCurrentToHistoryWithName==='function')saveCurrentToHistoryWithName();else alert('Funkce není dostupná - obnov stránku.');document.getElementById('planMenuList').style.display='none';" class="dm-item" style="color:var(--orange,#f97316);" title="Uložit aktuální spočítaný plán do lokální historie">⭐ Uložit do historie</button>
         <div style="height:1px;background:var(--border);margin:4px 0;"></div>
         <button onclick="if(typeof loadTestOrderCH==='function'){loadTestOrderCH();document.getElementById('planMenuList').style.display='none';}else alert('Funkce není dostupná.');" class="dm-item" style="color:var(--green,#3dd68c);" title="Nahraje testovací objednávku CH (3 vykládky) — užitečné pro vyzkoušení appky">📦 Načíst testovací objednávku (CH)</button>
+        <div style="height:1px;background:var(--border);margin:4px 0;"></div>
+        <button onclick="newOrder();document.getElementById('planMenuList').style.display='none';" class="dm-item" style="color:var(--red,#e24b4a);" title="Vymazat aktuální zadání (objednávky, adresy, bedny) i výsledky a začít načisto. Uložené plány a vozový park zůstanou.">🗑 Vymazat vše a začít načisto</button>
       </div>
     </div>
 
