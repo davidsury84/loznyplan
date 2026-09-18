@@ -853,8 +853,25 @@ canvas { display: block; }
 <!-- ══ PAGE 1: ORDER ══ -->
 <div class="page active" id="pageOrder">
 
-  <!-- Vehicles / Fleet -->
+  <!-- Orders — nahoře (nejčastější akce) -->
   <div style="padding:20px 24px 0;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+      <div class="section-title" style="margin-bottom:0;">Objednávky</div>
+      <button id="optimizeRouteBtn" style="
+        font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;
+        padding:5px 14px;border-radius:4px;cursor:pointer;
+        border:1px solid var(--blue);color:var(--blue);background:rgba(77,159,255,0.08);
+        text-transform:uppercase;transition:all 0.15s;white-space:nowrap;
+      ">🗺 Optimalizovat trasu z Bruntálu</button>
+      <span id="routeStatus" style="font-size:10px;color:var(--muted);font-family:'IBM Plex Mono',monospace;"></span>
+    </div>
+    <div id="routeOrderDisplay" style="display:none;background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:10px 14px;margin-bottom:10px;font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace;line-height:1.7;"></div>
+    <div id="ordersList"></div>
+    <button class="add-stop-btn" id="addOrderBtn" style="margin-top:10px;">+ Přidat objednávku</button>
+  </div>
+
+  <!-- Vehicles / Fleet -->
+  <div style="padding:16px 24px 0;">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
       <div class="section-title" style="margin-bottom:0;">Flotila vozidel</div>
       <button id="addVehicleBtn" style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;padding:5px 14px;border-radius:4px;cursor:pointer;border:1px solid var(--accent);color:var(--accent);background:rgba(240,192,64,0.08);text-transform:uppercase;transition:all 0.15s;white-space:nowrap;">+ Přidat vozidlo</button>
@@ -870,23 +887,6 @@ canvas { display: block; }
   <div style="padding:16px 24px 0;">
     <div class="section-title">Typy boxů / palet</div>
     <div class="box-types-grid" id="boxTypesGrid"></div>
-  </div>
-
-  <!-- Orders -->
-  <div style="padding:16px 24px 0;">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
-      <div class="section-title" style="margin-bottom:0;">Objednávky</div>
-      <button id="optimizeRouteBtn" style="
-        font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;
-        padding:5px 14px;border-radius:4px;cursor:pointer;
-        border:1px solid var(--blue);color:var(--blue);background:rgba(77,159,255,0.08);
-        text-transform:uppercase;transition:all 0.15s;white-space:nowrap;
-      ">🗺 Optimalizovat trasu z Bruntálu</button>
-      <span id="routeStatus" style="font-size:10px;color:var(--muted);font-family:'IBM Plex Mono',monospace;"></span>
-    </div>
-    <div id="routeOrderDisplay" style="display:none;background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:10px 14px;margin-bottom:10px;font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace;line-height:1.7;"></div>
-    <div id="ordersList"></div>
-    <button class="add-stop-btn" id="addOrderBtn" style="margin-top:10px;">+ Přidat objednávku</button>
   </div>
 
   <div style="padding:16px 24px 20px;display:flex;gap:8px;">
@@ -4163,6 +4163,41 @@ function renderBoxTypes() {
   if (!grid) return;
   grid.innerHTML = '';
 
+  // ── „Vyklikat do objednávky": sloupce KS/RAL v tabulce zapisují do vybrané adresy ──
+  const allAddrs = [];
+  (orders || []).forEach(o => (o.addresses || []).forEach(a => allAddrs.push({ o, a })));
+  if (!allAddrs.some(x => x.a.id === window._tableTargetAddrId)) {
+    window._tableTargetAddrId = allAddrs.length ? allAddrs[allAddrs.length - 1].a.id : null;
+  }
+  const target = allAddrs.find(x => x.a.id === window._tableTargetAddrId) || null;
+  {
+    const bar = document.createElement('div');
+    bar.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;';
+    const barLbl = document.createElement('span');
+    barLbl.style.cssText = "font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-family:'IBM Plex Mono',monospace;";
+    barLbl.textContent = '🛒 Sloupce KS a RAL zapisují do:';
+    bar.appendChild(barLbl);
+    if (allAddrs.length) {
+      const sel = document.createElement('select');
+      sel.style.cssText = 'background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:12px;max-width:460px;cursor:pointer;';
+      allAddrs.forEach(({ o, a }) => {
+        const opt = document.createElement('option');
+        opt.value = a.id;
+        opt.textContent = `${o.name}${a.address ? ' — ' + a.address.slice(0, 48) : ' — (bez adresy)'}`;
+        if (target && a.id === target.a.id) opt.selected = true;
+        sel.appendChild(opt);
+      });
+      sel.addEventListener('change', () => { window._tableTargetAddrId = +sel.value; renderBoxTypes(); });
+      bar.appendChild(sel);
+    } else {
+      const hint = document.createElement('span');
+      hint.style.cssText = 'font-size:11px;color:var(--orange);';
+      hint.textContent = 'Nejdřív založ objednávku (➕ Nová) — pak jde počet kusů a barva vyklikat přímo tady.';
+      bar.appendChild(hint);
+    }
+    grid.appendChild(bar);
+  }
+
   // Seskupit boxy podle velikosti půdorysu (l × w) pro lepší orientaci
   // Příklady kategorií: 800×600, 1200×800, 1600×1200, atd.
   const groups = {};
@@ -4190,6 +4225,8 @@ function renderBoxTypes() {
     <th colspan="3" style="padding:5px 4px;text-align:center;font-size:9px;color:var(--blue);letter-spacing:1px;font-family:'IBM Plex Mono',monospace;border-bottom:1px solid var(--border);border-right:1px solid var(--border);font-weight:700;background:rgba(77,159,255,0.06);">VNITŘNÍ ROZMĚR (mm)</th>
     <th rowspan="2" style="padding:6px 4px;text-align:center;font-size:9px;color:var(--muted);letter-spacing:1px;font-family:'IBM Plex Mono',monospace;border-bottom:1px solid var(--border);border-right:1px solid var(--border);font-weight:600;width:60px;vertical-align:middle;">KG</th>
     <th rowspan="2" style="padding:6px 4px;text-align:center;font-size:9px;color:var(--muted);letter-spacing:1px;font-family:'IBM Plex Mono',monospace;border-bottom:1px solid var(--border);border-right:1px solid var(--border);font-weight:600;width:60px;vertical-align:middle;">VÍKO</th>
+    <th rowspan="2" title="Počet kusů do vybrané objednávky (viz výběr nad tabulkou)" style="padding:6px 4px;text-align:center;font-size:9px;color:var(--accent);letter-spacing:1px;font-family:'IBM Plex Mono',monospace;border-bottom:1px solid var(--border);border-right:1px solid var(--border);font-weight:700;width:64px;vertical-align:middle;background:rgba(240,192,64,0.07);">🛒 KS</th>
+    <th rowspan="2" title="RAL barva pro tento typ ve vybrané objednávce" style="padding:6px 4px;text-align:center;font-size:9px;color:var(--accent);letter-spacing:1px;font-family:'IBM Plex Mono',monospace;border-bottom:1px solid var(--border);border-right:1px solid var(--border);font-weight:700;width:44px;vertical-align:middle;background:rgba(240,192,64,0.07);">RAL</th>
     <th rowspan="2" style="padding:6px 4px;text-align:center;border-bottom:1px solid var(--border);width:30px;vertical-align:middle;"></th>
   </tr>
   <tr style="background:var(--panel2);">
@@ -4221,9 +4258,9 @@ function renderBoxTypes() {
   // Renderovat skupiny
   groupsSorted.forEach(([key, grp]) => {
     // Hlavička skupiny — barevný proužek s velikostí
-    // colspan = 11 (barva, název, l, w, h, li, wi, hi, kg, víko, ✕)
+    // colspan = 13 (barva, název, l, w, h, li, wi, hi, kg, víko, ks, ral, ✕)
     const grpRow = document.createElement('tr');
-    grpRow.innerHTML = `<td colspan="11" style="padding:5px 8px;background:rgba(77,159,255,0.08);font-size:9px;color:var(--blue);font-family:'IBM Plex Mono',monospace;letter-spacing:1px;font-weight:600;border-bottom:1px solid var(--border);">${grp.l} × ${grp.w} mm · ${grp.items.length} typů</td>`;
+    grpRow.innerHTML = `<td colspan="13" style="padding:5px 8px;background:rgba(77,159,255,0.08);font-size:9px;color:var(--blue);font-family:'IBM Plex Mono',monospace;letter-spacing:1px;font-weight:600;border-bottom:1px solid var(--border);">${grp.l} × ${grp.w} mm · ${grp.items.length} typů</td>`;
     tbody.appendChild(grpRow);
 
     // Boxy ve skupině — seřadit dle výšky (h) sestupně, pak dle názvu
@@ -4301,6 +4338,57 @@ function renderBoxTypes() {
         lidTd.appendChild(addLid);
       }
       tr.appendChild(lidTd);
+
+      // 11+12) DO OBJEDNÁVKY: počet kusů + RAL barva pro cílovou adresu (panel nad tabulkou)
+      const qTd = document.createElement('td');
+      qTd.style.cssText = 'padding:4px 2px;text-align:center;border-right:1px solid var(--border);background:rgba(240,192,64,0.05);';
+      const rTd = document.createElement('td');
+      rTd.style.cssText = 'padding:4px 2px;text-align:center;border-right:1px solid var(--border);background:rgba(240,192,64,0.05);';
+      const addr = target && target.a;
+      if (addr) {
+        const hasBatches = addr.batches && addr.batches[t.id] && addr.batches[t.id].length > 1;
+        const q = document.createElement('input');
+        q.type = 'number'; q.min = '0';
+        q.value = addr.boxes[t.id] || 0;
+        q.title = hasBatches ? 'Typ má víc dávek — počty uprav v objednávce (karty #1, #2…)' : 'Počet kusů do vybrané objednávky';
+        q.disabled = !!hasBatches;
+        const qStyle = (v) => { q.style.color = v > 0 ? 'var(--accent)' : 'var(--muted)'; q.style.fontWeight = v > 0 ? '700' : '400'; };
+        q.style.cssText = `background:transparent;border:none;border-bottom:1px solid transparent;border-radius:0;padding:3px 4px;font-family:'IBM Plex Mono',monospace;font-size:12px;outline:none;width:100%;text-align:center;`;
+        qStyle(+q.value);
+        q.addEventListener('focus', () => q.style.borderBottomColor = 'var(--accent)');
+        q.addEventListener('blur',  () => q.style.borderBottomColor = 'transparent');
+        q.addEventListener('input', () => {
+          const v = +q.value || 0;
+          if (v > 0) addr.boxes[t.id] = v;
+          else { delete addr.boxes[t.id]; if (addr.batches) delete addr.batches[t.id]; }
+          qStyle(v);
+          stops = []; assignedVehicles = [];
+          const btn = document.getElementById('calcBtn');
+          if (btn) { btn.textContent = '⚡ Přepočítat ložné plány ⚠'; btn.style.background = 'var(--orange)'; }
+          renderOrders();
+        });
+        q.addEventListener('change', () => { try { saveWorkspace(); } catch (e) {} });
+        qTd.appendChild(q);
+
+        const curRal = (addr.rals && addr.rals[t.id]) || null;
+        const rb = document.createElement('button');
+        rb.type = 'button';
+        rb.title = hasBatches ? 'Typ má víc dávek — RAL uprav v objednávce' : (curRal ? `RAL: ${curRal.ral} — klikni pro změnu` : 'Vybrat RAL barvu');
+        rb.disabled = !!hasBatches;
+        rb.style.cssText = `width:22px;height:22px;border-radius:4px;cursor:${hasBatches ? 'not-allowed' : 'pointer'};border:1px solid var(--border);background:${curRal ? curRal.hex : 'transparent'};font-size:9px;color:${curRal ? '#fff' : 'var(--muted)'};text-shadow:0 0 2px rgba(0,0,0,0.8);`;
+        rb.innerHTML = curRal ? '✓' : '🎨';
+        rb.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (hasBatches) return;
+          openRalPicker(rb, addr, t.id, () => { renderBoxTypes(); renderOrders(); });
+        });
+        rTd.appendChild(rb);
+      } else {
+        qTd.innerHTML = '<span style="color:var(--muted);font-size:10px;">—</span>';
+        rTd.innerHTML = '<span style="color:var(--muted);font-size:10px;">—</span>';
+      }
+      tr.appendChild(qTd);
+      tr.appendChild(rTd);
 
       // 9) Smazat
       const dTd = document.createElement('td');
@@ -11314,7 +11402,9 @@ function openNewOrderModal() {
     const btn = document.getElementById('calcBtn');
     if (btn) { btn.textContent = '⚡ Přepočítat ložné plány ⚠'; btn.style.background = 'var(--orange)'; }
     close();
+    window._tableTargetAddrId = addrObj.id;   // tabulka výrobků teď „vyklikává" do nové objednávky
     renderOrders();
+    try { renderBoxTypes(); } catch (e) {}
     try { saveWorkspace(); } catch (e) {}
     if (window.logAction) window.logAction('akce', `➕ Nová objednávka „${orders[orders.length - 1].name}" (${Object.keys(boxes).length} typů)`);
   });
@@ -13371,6 +13461,7 @@ function newOrder() {
   _allVehResults = [];
   selectedVehicleIdx = 0;
   renderOrders();
+  try { renderBoxTypes(); } catch (e) {}
   try { saveWorkspace(); } catch (e) {}
   dispose3D();
   // přepni na záložku Objednávka a vyčisti výsledky
