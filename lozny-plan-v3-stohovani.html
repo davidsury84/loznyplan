@@ -1517,6 +1517,20 @@ function recordActivity(type, details) {
 const ORDER_HISTORY_KEY    = 'elkoplast_order_history_v1';
 const ORDER_HISTORY_LIMIT  = 30;
 
+// ── Náhrobky smazaných objednávek / plánů historie ─────────────────────
+// Sdílí se přes server (deletedOrders/deletedHistory): bez nich by klient
+// se starou lokální kopií smazané položky při syncu „vzkřísil" pro všechny.
+const DELETED_KEY = 'elkoplast_deleted_v1';
+function loadDeleted() {
+  try { const d = JSON.parse(localStorage.getItem(DELETED_KEY)) || {}; return { orders: d.orders || [], history: d.history || [] }; }
+  catch (e) { return { orders: [], history: [] }; }
+}
+function saveDeleted(d) {
+  try { localStorage.setItem(DELETED_KEY, JSON.stringify({ orders: (d.orders || []).slice(-2000), history: (d.history || []).slice(-2000) })); } catch (e) {}
+}
+function markOrderDeleted(id)   { const d = loadDeleted(); if (d.orders.indexOf(id)  < 0) { d.orders.push(id);  saveDeleted(d); } }
+function markHistoryDeleted(id) { const d = loadDeleted(); if (d.history.indexOf(id) < 0) { d.history.push(id); saveDeleted(d); } }
+
 function loadOrderHistory() {
   try { return JSON.parse(localStorage.getItem(ORDER_HISTORY_KEY)) || []; }
   catch (e) { return []; }
@@ -1606,12 +1620,19 @@ async function saveCurrentOrderToHistory(customName, customNote) {
   return entry;
 }
 
+// Smaže celou lokální historii včetně náhrobků (jinak by se plány vrátily syncem)
+function clearAllOrderHistory() {
+  loadOrderHistory().forEach(e => markHistoryDeleted(e.id));
+  localStorage.removeItem(ORDER_HISTORY_KEY);
+  if (typeof pushToServer === 'function') pushToServer();
+}
 function deleteFromOrderHistory(id) {
   const list = loadOrderHistory();
   const idx = list.findIndex(e => e.id === id);
   if (idx < 0) return false;
   list.splice(idx, 1);
   saveOrderHistoryList(list);
+  markHistoryDeleted(id);   // náhrobek — plán se nesmí vrátit syncem z jiného PC
   if (typeof pushToServer === 'function') {
     try { pushToServer(); } catch (e) {}
   }
@@ -1730,7 +1751,7 @@ function openOrderHistoryModal() {
         <label style="padding:6px 12px;font-size:11px;border-radius:4px;border:1px solid var(--blue,#4d9fff);background:rgba(77,159,255,0.1);color:var(--blue,#4d9fff);cursor:pointer;">
           ⬆ Import<input type="file" accept=".json" onchange="if(this.files[0]){importOrderHistoryFile(this.files[0]);}" style="display:none;">
         </label>
-        ${list.length ? `<button onclick="if(confirm('Smazat CELOU historii? (${list.length} zakázek)\\n\\nDoporučujeme nejdřív export.')){localStorage.removeItem(ORDER_HISTORY_KEY);openOrderHistoryModal();}" style="padding:6px 12px;font-size:11px;border-radius:4px;border:1px solid var(--red,#e24b4a);background:transparent;color:var(--red,#e24b4a);cursor:pointer;">🗑 Smazat vše</button>` : ''}
+        ${list.length ? `<button onclick="if(confirm('Smazat CELOU historii? (${list.length} zakázek)\\n\\nDoporučujeme nejdřív export.')){clearAllOrderHistory();openOrderHistoryModal();}" style="padding:6px 12px;font-size:11px;border-radius:4px;border:1px solid var(--red,#e24b4a);background:transparent;color:var(--red,#e24b4a);cursor:pointer;">🗑 Smazat vše</button>` : ''}
         <button onclick="document.getElementById('orderHistoryModal').remove();" style="padding:6px 12px;font-size:11px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;">✕ Zavřít</button>
       </div>
     </div>
@@ -4586,7 +4607,16 @@ function renderOrders() {
       const delBtn = document.createElement('button');
       delBtn.className = 'del-order-btn';
       delBtn.textContent = '✕';
-      delBtn.addEventListener('click', () => { orders = orders.filter(o => o.id !== order.id); renderOrders(); renderBoxTypes(); });
+      delBtn.title = 'Smazat objednávku (pro všechny uživatele)';
+      delBtn.addEventListener('click', () => {
+        if (!confirm(`Smazat objednávku „${order.name || 'bez názvu'}" pro všechny uživatele?\n\n(Typy beden a vozidla zůstávají.)`)) return;
+        orders = orders.filter(o => o.id !== order.id);
+        markOrderDeleted(order.id);          // náhrobek — ať se nevrátí ze žádného PC
+        stops = []; assignedVehicles = [];
+        renderOrders(); renderBoxTypes();
+        try { saveWorkspace(); } catch (e) {}
+        if (typeof pushToServer === 'function') pushToServer();
+      });
       hdr.appendChild(delBtn);
     }
     block.appendChild(hdr);
@@ -14407,9 +14437,15 @@ async function syncFromServer(silent) {
       }));
       return c;
     };
-    const ordersById = new Map(incomingOrders.map(o => [o.id, o]));
+    // Náhrobky: server ∪ lokální; smazané objednávky se nesmí vrátit z žádné strany
+    const localDel = loadDeleted();
+    const delOrdersSet  = new Set([...(data.deletedOrders  || []), ...localDel.orders]);
+    const delHistorySet = new Set([...(data.deletedHistory || []), ...localDel.history]);
+    saveDeleted({ orders: Array.from(delOrdersSet), history: Array.from(delHistorySet) });
+    const ordersById = new Map(incomingOrders.filter(o => !delOrdersSet.has(o.id)).map(o => [o.id, o]));
     let addedO = 0;
     for (const lo of (orders || [])) {
+      if (delOrdersSet.has(lo.id)) continue;   // lokálně přeživší smazaná objednávka → zahodit
       if (!ordersById.has(lo.id)) { ordersById.set(lo.id, remapOrderTypeIds(lo)); addedO++; }
     }
     const mergedOrders = Array.from(ordersById.values());
@@ -14421,10 +14457,10 @@ async function syncFromServer(silent) {
       .filter(a => a && a.id && !seenIds.has(a.id) && seenIds.add(a.id))
       .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
       .slice(0, 500);
-    // history: union podle id, řazené sestupně, cap 30
+    // history: union podle id (mimo náhrobky), řazené sestupně, cap 30
     const localHistory = (typeof loadOrderHistory === 'function') ? loadOrderHistory() : [];
-    const histById = new Map(incomingHistory.map(h => [h.id, h]));
-    for (const lh of localHistory) if (!histById.has(lh.id)) histById.set(lh.id, lh);
+    const histById = new Map(incomingHistory.filter(h => !delHistorySet.has(h.id)).map(h => [h.id, h]));
+    for (const lh of localHistory) if (!delHistorySet.has(lh.id) && !histById.has(lh.id)) histById.set(lh.id, lh);
     const mergedHistory = Array.from(histById.values())
       .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
       .slice(0, 30);
@@ -14508,6 +14544,8 @@ function pushToServer() {
           team:     localTeam,
           activity: localActivity.slice(0, 500),  // cap při push
           history:  localHistory.slice(0, 30),
+          deletedOrders:  loadDeleted().orders,
+          deletedHistory: loadDeleted().history,
           modifiedBy: who
         })
       });

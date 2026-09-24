@@ -57,6 +57,10 @@ function loadShared() {
       data.team     = data.team     || [];
       data.activity = data.activity || [];
       data.history  = data.history  || [];
+      // Náhrobky smazaných objednávek/plánů — bez nich by je klienti se starou
+      // lokální kopií při syncu „vzkřísili" a nahráli zpátky na server
+      data.deletedOrders  = data.deletedOrders  || [];
+      data.deletedHistory = data.deletedHistory || [];
       return data;
     }
   } catch (e) {
@@ -65,6 +69,7 @@ function loadShared() {
   // Default prázdné — klient nahraje vlastní defaulty
   return {
     boxTypes: [], fleet: [], orders: [], team: [], activity: [], history: [],
+    deletedOrders: [], deletedHistory: [],
     version: 0, lastModified: null, lastModifiedBy: null
   };
 }
@@ -216,7 +221,9 @@ app.get('/api/shared', (_req, res) => {
     orders:   sharedState.orders   || [],
     team:     sharedState.team     || [],
     activity: sharedState.activity || [],
-    history:  sharedState.history  || []
+    history:  sharedState.history  || [],
+    deletedOrders:  sharedState.deletedOrders  || [],
+    deletedHistory: sharedState.deletedHistory || []
   });
 });
 
@@ -232,6 +239,10 @@ app.put('/api/shared', (req, res) => {
   const team     = Array.isArray(body.team)     ? body.team     : (sharedState.team     || []);
   const activity = Array.isArray(body.activity) ? body.activity : (sharedState.activity || []);
   const history  = Array.isArray(body.history)  ? body.history  : (sharedState.history  || []);
+  // Náhrobky: sjednotit s existujícími (jen přibývají), cap 2000 nejnovějších
+  const unionIds = (a, b) => Array.from(new Set([...(a || []), ...(b || [])])).slice(-2000);
+  const deletedOrders  = unionIds(sharedState.deletedOrders,  Array.isArray(body.deletedOrders)  ? body.deletedOrders  : []);
+  const deletedHistory = unionIds(sharedState.deletedHistory, Array.isArray(body.deletedHistory) ? body.deletedHistory : []);
   // Velikostní limity (proti přetížení)
   if (body.boxTypes.length > 1000) return res.status(400).json({ error: 'boxTypes přes 1000 položek' });
   if (body.fleet.length    > 200)  return res.status(400).json({ error: 'fleet přes 200 položek' });
@@ -240,13 +251,19 @@ app.put('/api/shared', (req, res) => {
   if (activity.length      > 2000) return res.status(400).json({ error: 'activity přes 2000 záznamů (omezte historii)' });
   if (history.length       > 200)  return res.status(400).json({ error: 'history přes 200 plánů' });
 
+  // Smazané položky nesmí projít zpět ani od klientů se starou verzí appky
+  const delOrdersSet  = new Set(deletedOrders);
+  const delHistorySet = new Set(deletedHistory);
   sharedState = {
     version: (sharedState.version || 0) + 1,
     lastModified: new Date().toISOString(),
     lastModifiedBy: String(body.modifiedBy || 'neznámý').slice(0, 80),
     boxTypes: body.boxTypes,
     fleet: body.fleet,
-    orders, team, activity, history
+    orders:  orders.filter(o => !delOrdersSet.has(o.id)),
+    team, activity,
+    history: history.filter(h => !delHistorySet.has(h.id)),
+    deletedOrders, deletedHistory
   };
   const saved = saveShared(sharedState);
   console.log(`📝 /api/shared PUT: v${sharedState.version} by ${sharedState.lastModifiedBy} ` +
