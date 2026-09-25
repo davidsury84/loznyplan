@@ -62,6 +62,7 @@ function loadShared() {
       data.deletedOrders  = data.deletedOrders  || [];
       data.deletedHistory = data.deletedHistory || [];
       data.deletedFleet   = data.deletedFleet   || [];
+      data.vehPresets     = data.vehPresets     || [];
       return data;
     }
   } catch (e) {
@@ -70,7 +71,7 @@ function loadShared() {
   // Default prázdné — klient nahraje vlastní defaulty
   return {
     boxTypes: [], fleet: [], orders: [], team: [], activity: [], history: [],
-    deletedOrders: [], deletedHistory: [], deletedFleet: [],
+    deletedOrders: [], deletedHistory: [], deletedFleet: [], vehPresets: [],
     version: 0, lastModified: null, lastModifiedBy: null
   };
 }
@@ -225,7 +226,8 @@ app.get('/api/shared', (_req, res) => {
     history:  sharedState.history  || [],
     deletedOrders:  sharedState.deletedOrders  || [],
     deletedHistory: sharedState.deletedHistory || [],
-    deletedFleet:   sharedState.deletedFleet   || []
+    deletedFleet:   sharedState.deletedFleet   || [],
+    vehPresets:     sharedState.vehPresets     || []
   });
 });
 
@@ -246,6 +248,8 @@ app.put('/api/shared', (req, res) => {
   const deletedOrders  = unionIds(sharedState.deletedOrders,  Array.isArray(body.deletedOrders)  ? body.deletedOrders  : []);
   const deletedHistory = unionIds(sharedState.deletedHistory, Array.isArray(body.deletedHistory) ? body.deletedHistory : []);
   const deletedFleet   = unionIds(sharedState.deletedFleet,   Array.isArray(body.deletedFleet)   ? body.deletedFleet   : []);
+  // Editovatelné typy kamionů pro výpočet — celé nahradit, když klient posílá
+  const vehPresets = (Array.isArray(body.vehPresets) && body.vehPresets.length) ? body.vehPresets.slice(0, 100) : (sharedState.vehPresets || []);
   // Velikostní limity (proti přetížení)
   if (body.boxTypes.length > 1000) return res.status(400).json({ error: 'boxTypes přes 1000 položek' });
   if (body.fleet.length    > 200)  return res.status(400).json({ error: 'fleet přes 200 položek' });
@@ -267,7 +271,7 @@ app.put('/api/shared', (req, res) => {
     orders:  orders.filter(o => !delOrdersSet.has(o.id)),
     team, activity,
     history: history.filter(h => !delHistorySet.has(h.id)),
-    deletedOrders, deletedHistory, deletedFleet
+    deletedOrders, deletedHistory, deletedFleet, vehPresets
   };
   const saved = saveShared(sharedState);
   console.log(`📝 /api/shared PUT: v${sharedState.version} by ${sharedState.lastModifiedBy} ` +

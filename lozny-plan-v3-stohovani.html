@@ -2231,7 +2231,7 @@ function flattenStops() {
 // ══════════════════════════════════════════════════════
 // FLEET — dynamická flotila vozidel
 // ══════════════════════════════════════════════════════
-const VEHICLE_PRESETS = [
+let VEHICLE_PRESETS = [
   // ── Auta s vlekem ─── šířka 2400mm, výška 2900mm, nosnost 15 500 kg ─
   // Ložná délka: auto 7350mm, vlek 8500mm (z provozního listu)
   { icon: '🚙', label: 'Auto s vlekem',       L: 7350,  W: 2400, H: 2900, maxKg: 15500, trailerL: 8500, trailerMaxKg: 15500, priority: 1 },
@@ -3682,6 +3682,70 @@ function toggleVehVariants(idx) {
 
 
 // ── VÝBĚR AUT DO VÝPOČTU (checklist presetů) ──────────────────────
+// Uživatelské úpravy kamionů (délky, nosnosti, vlastní typy) — lokálně + sdíleně přes server
+try { const _vp = JSON.parse(localStorage.getItem('lozny_veh_presets')); if (Array.isArray(_vp) && _vp.length) VEHICLE_PRESETS = _vp; } catch (e) {}
+function saveVehPresets() {
+  try { localStorage.setItem('lozny_veh_presets', JSON.stringify(VEHICLE_PRESETS)); } catch (e) {}
+  if (typeof pushToServer === 'function') pushToServer();
+}
+
+// Editor kamionu pro „Auta do výpočtu" — úprava parametrů nebo nový typ
+function editVehPreset(preset) {
+  document.getElementById('vehPresetEd')?.remove();
+  const isNew = VEHICLE_PRESETS.indexOf(preset) < 0;
+  const ov = document.createElement('div');
+  ov.id = 'vehPresetEd';
+  ov.className = 'modal-overlay open';
+  const F = (lbl, key) => `<label style="display:flex;flex-direction:column;gap:3px;font-size:9px;color:var(--muted);font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:0.5px;">${lbl}<input id="vp_${key}" value="${preset[key] != null ? preset[key] : ''}" style="background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:7px 9px;font-size:13px;"></label>`;
+  ov.innerHTML = `<div class="modal" style="width:440px;max-width:94vw;padding:18px;display:flex;flex-direction:column;gap:10px;">
+    <h3 style="margin:0;color:var(--accent);font-size:15px;">${isNew ? '➕ Nový kamion' : '✏️ Upravit kamion'}</h3>
+    ${F('Název', 'label')}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      ${F('Délka mm', 'L')}${F('Max kg', 'maxKg')}${F('Šířka mm', 'W')}${F('Výška mm', 'H')}${F('Vlek — délka mm (prázdné = bez vleku)', 'trailerL')}${F('Vlek — max kg', 'trailerMaxKg')}
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">
+      ${(!isNew && VEHICLE_PRESETS.filter(x => x.label !== 'Vlastní').length > 1) ? '<button id="vpDel" style="margin-right:auto;padding:8px 12px;border-radius:6px;border:1px solid var(--red);background:none;color:var(--red);cursor:pointer;font-size:12px;">🗑 Smazat kamion</button>' : ''}
+      <button id="vpCancel" style="padding:8px 14px;border-radius:6px;border:1px solid var(--border);background:none;color:var(--muted);cursor:pointer;font-size:12px;">Zrušit</button>
+      <button id="vpSave" style="padding:8px 18px;border-radius:6px;border:none;background:var(--accent);color:#fff;font-weight:700;cursor:pointer;font-size:13px;">✓ Uložit</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+  const close = () => ov.remove();
+  ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
+  ov.querySelector('#vpCancel').addEventListener('click', close);
+  const delBtn = ov.querySelector('#vpDel');
+  if (delBtn) delBtn.addEventListener('click', () => {
+    if (!confirm(`Smazat kamion „${preset.label}" z výběru pro všechny uživatele?`)) return;
+    VEHICLE_PRESETS = VEHICLE_PRESETS.filter(x => x !== preset);
+    const sel = getSelectedPresetLabels(); sel.delete(preset.label); saveSelectedPresetLabels(sel);
+    close(); saveVehPresets(); renderVehSelect();
+  });
+  ov.querySelector('#vpSave').addEventListener('click', () => {
+    const v = (k) => ov.querySelector('#vp_' + k).value.trim();
+    const num = (k) => Math.max(0, Math.round(+v(k) || 0));
+    const name = v('label');
+    if (!name) { alert('Vyplň název kamionu.'); return; }
+    if (!num('L') || !num('W') || !num('H')) { alert('Vyplň rozměry (délka, šířka, výška v mm).'); return; }
+    const oldLabel = preset.label;
+    preset.label = name;
+    preset.L = num('L'); preset.W = num('W'); preset.H = num('H');
+    preset.maxKg = num('maxKg') || preset.maxKg || 24000;
+    if (num('trailerL') > 0) { preset.trailerL = num('trailerL'); preset.trailerMaxKg = num('trailerMaxKg') || preset.maxKg; }
+    else { delete preset.trailerL; delete preset.trailerMaxKg; }
+    if (!preset.icon) preset.icon = preset.trailerL ? '🚙' : '🚛';
+    if (preset.priority == null) preset.priority = 2;
+    if (isNew) {
+      const vlIdx = VEHICLE_PRESETS.findIndex(x => x.label === 'Vlastní');
+      if (vlIdx >= 0) VEHICLE_PRESETS.splice(vlIdx, 0, preset); else VEHICLE_PRESETS.push(preset);
+      const sel = getSelectedPresetLabels(); sel.add(preset.label); saveSelectedPresetLabels(sel);
+    } else if (oldLabel !== preset.label) {
+      const sel = getSelectedPresetLabels();
+      if (sel.has(oldLabel)) { sel.delete(oldLabel); sel.add(preset.label); saveSelectedPresetLabels(sel); }
+    }
+    close(); saveVehPresets(); renderVehSelect();
+  });
+  setTimeout(() => { const f = ov.querySelector('#vp_label'); if (f) { f.focus(); if (isNew) f.select(); } }, 50);
+}
+
 function getSelectedPresetLabels() {
   try {
     const raw = localStorage.getItem('lozny_vehsel');
@@ -3857,9 +3921,24 @@ function renderVehSelect() {
     });
     const txt = document.createElement('span');
     txt.innerHTML = `${p.icon} <b>${p.label}</b> <span style="color:var(--muted);">${spec}</span>`;
-    chip.appendChild(cb); chip.appendChild(txt);
+    const ed = document.createElement('button');
+    ed.type = 'button';
+    ed.textContent = '✎';
+    ed.title = 'Upravit kamion — název, délka, rozměry, nosnost, vlek';
+    ed.style.cssText = 'background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0 0 0 2px;line-height:1;';
+    ed.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); editVehPreset(p); });
+    chip.appendChild(cb); chip.appendChild(txt); chip.appendChild(ed);
     wrap.appendChild(chip);
   });
+
+  // + Kamion — přidání nového typu do výběru (sdílí se všem)
+  const addChip = document.createElement('button');
+  addChip.type = 'button';
+  addChip.textContent = '+ Kamion';
+  addChip.title = 'Přidat nový typ kamionu do výběru (uloží se pro všechny uživatele)';
+  addChip.style.cssText = 'display:inline-flex;align-items:center;padding:6px 12px;margin:0 6px 6px 0;border-radius:6px;cursor:pointer;border:1px dashed var(--accent);background:rgba(240,192,64,0.06);color:var(--accent);font-size:11px;font-weight:700;';
+  addChip.addEventListener('click', () => editVehPreset({ icon: '🚛', label: '', L: 13600, W: 2400, H: 2900, maxKg: 24000, priority: 2 }));
+  wrap.appendChild(addChip);
 }
 
 // ── Seskupení flotily: stejné typy do jedné karty s počtem ──
@@ -4489,6 +4568,94 @@ function renderBoxTypes() {
   renderOrders();
 }
 
+
+// ══════════════════════════════════════════════════════
+// SDÍLENÝ NAŠEPTÁVAČ ADRES (Nominatim) — jeden pro celou appku.
+// Dropdown se přikládá k <body> (position:fixed), takže funguje v seznamu
+// objednávek i v modálu; barvy z CSS proměnných (viditelné ve světlém tématu).
+// ══════════════════════════════════════════════════════
+window.addEventListener('scroll', (e) => {
+  document.querySelectorAll('.addr-ac-list').forEach(l => { if (e.target !== l) l.remove(); });
+}, true);
+
+function attachAddressAutocomplete(inp, onPick) {
+  inp.autocomplete = 'off';
+  let list = null, timer = null, controller = null;
+  const close = () => { if (list) { list.remove(); list = null; } };
+  const ensureList = () => {
+    if (list && list.isConnected) return list;
+    list = document.createElement('div');
+    list.className = 'addr-ac-list';
+    const r = inp.getBoundingClientRect();
+    list.style.cssText = `position:fixed;top:${r.bottom + 2}px;left:${r.left}px;width:${Math.max(r.width, 300)}px;z-index:10050;
+      background:var(--panel,#fff);border:1px solid var(--border);border-radius:6px;max-height:240px;overflow-y:auto;
+      box-shadow:0 8px 24px rgba(15,21,18,0.22);`;
+    document.body.appendChild(list);
+    return list;
+  };
+  const render = (items) => {
+    if (!items || !items.length) { close(); return; }
+    const el = ensureList(); el.innerHTML = '';
+    items.forEach(item => {
+      const row = document.createElement('div');
+      row.className = 'addr-ac-row';
+      row.style.cssText = 'padding:8px 12px;cursor:pointer;font-size:12px;color:var(--text);border-bottom:1px solid var(--border);transition:background 0.1s;background:var(--panel,#fff);';
+      row.addEventListener('mouseenter', () => row.style.background = 'rgba(31,111,214,0.10)');
+      row.addEventListener('mouseleave', () => row.style.background = 'var(--panel,#fff)');
+      const a = item.address || {};
+      const main = [a.road, a.house_number].filter(Boolean).join(' ') || a.pedestrian || a.suburb || item.name || '';
+      const city = a.city || a.town || a.village || a.municipality || '';
+      const detail = [city, a.state, a.country].filter(Boolean).join(', ');
+      row.innerHTML = `
+        <div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${main || detail}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${main ? detail : item.display_name}</div>`;
+      row.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        inp.value = item.display_name;
+        close();
+        onPick(item);
+      });
+      el.appendChild(row);
+    });
+  };
+  const fetchSuggestions = async (q) => {
+    if (controller) controller.abort();
+    controller = new AbortController();
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=6&addressdetails=1&countrycodes=cz,sk,de,at,pl,hu,ch,fr,it,nl,be,dk,se,no,fi,es,pt,ro,bg,hr,si,ee,lv,lt`;
+      const r = await fetch(url, { signal: controller.signal, headers: { 'Accept-Language': 'cs,en' } });
+      render(await r.json());
+    } catch (e) { if (e.name !== 'AbortError') close(); }
+  };
+  inp.addEventListener('input', () => {
+    const q = inp.value.trim();
+    if (q.length < 3) { close(); return; }
+    clearTimeout(timer);
+    timer = setTimeout(() => fetchSuggestions(q), 320);
+  });
+  inp.addEventListener('blur', () => setTimeout(close, 150));
+  inp.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { close(); return; }
+    if (!list || !list.isConnected) return;
+    const rows = list.querySelectorAll('.addr-ac-row');
+    if (!rows.length) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const active = list.querySelector('.ac-active');
+      let idx = active ? [...rows].indexOf(active) : -1;
+      if (active) { active.classList.remove('ac-active'); active.style.background = 'var(--panel,#fff)'; }
+      idx = e.key === 'ArrowDown' ? Math.min(idx + 1, rows.length - 1) : Math.max(idx - 1, 0);
+      rows[idx].classList.add('ac-active');
+      rows[idx].style.background = 'rgba(31,111,214,0.18)';
+      rows[idx].scrollIntoView({ block: 'nearest' });
+    }
+    if (e.key === 'Enter') {
+      const active = list.querySelector('.ac-active');
+      if (active) { e.preventDefault(); active.dispatchEvent(new MouseEvent('mousedown')); }
+    }
+  });
+}
+
 // ══════════════════════════════════════════════════════
 // RENDER ORDERS
 // ══════════════════════════════════════════════════════
@@ -4680,113 +4847,27 @@ function renderOrders() {
       aInp.value = addr.address;
       aInp.autocomplete = 'off';
 
-      // ── Autocomplete dropdown ──
+      // ── Našeptávač adres (sdílená funkce, světlé pozadí) ──
       const acWrap = document.createElement('div');
       acWrap.style.cssText = 'position:relative;flex:1;min-width:0;';
       aInp.style.width = '100%';
-
-      const acList = document.createElement('div');
-      acList.style.cssText = `
-        position:absolute;top:100%;left:0;right:0;z-index:9999;
-        background:#1a2235;border:1px solid var(--border);border-top:none;
-        border-radius:0 0 6px 6px;max-height:220px;overflow-y:auto;
-        box-shadow:0 8px 24px rgba(15,21,18,0.18);display:none;
-      `;
-
-      let acTimer = null, acController = null;
 
       aInp.addEventListener('input', () => {
         addr.address = aInp.value;
         stops = []; assignedVehicles = [];
         const btn = document.getElementById('calcBtn');
         if (btn) { btn.textContent = '⚡ Přepočítat ložné plány ⚠'; btn.style.background = 'var(--orange)'; }
-
-        const q = aInp.value.trim();
-        if (q.length < 3) { acList.style.display = 'none'; return; }
-
-        clearTimeout(acTimer);
-        acTimer = setTimeout(() => fetchSuggestions(q), 320);
       });
-
-      async function fetchSuggestions(q) {
-        if (acController) acController.abort();
-        acController = new AbortController();
-        try {
-          const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=6&addressdetails=1&countrycodes=cz,sk,de,at,pl,hu,ch,fr,it,nl,be,dk,se,no,fi,es,pt,ro,bg,hr,si,ee,lv,lt`;
-          const r = await fetch(url, {
-            signal: acController.signal,
-            headers: { 'Accept-Language': 'cs,en', 'User-Agent': 'LoznyPlan/1.0' }
-          });
-          const data = await r.json();
-          showSuggestions(data);
-        } catch(e) {
-          if (e.name !== 'AbortError') acList.style.display = 'none';
-        }
-      }
-
-      function showSuggestions(items) {
-        acList.innerHTML = '';
-        if (!items.length) { acList.style.display = 'none'; return; }
-
-        items.forEach(item => {
-          const row = document.createElement('div');
-          row.style.cssText = 'padding:8px 12px;cursor:pointer;font-size:12px;color:var(--text);border-bottom:1px solid rgba(0,0,0,0.05);transition:background 0.1s;';
-          row.addEventListener('mouseenter', () => row.style.background = 'rgba(77,159,255,0.15)');
-          row.addEventListener('mouseleave', () => row.style.background = '');
-
-          // Formátuj adresu: hlavní část tučně + detail
-          const a = item.address || {};
-          const main = [a.road, a.house_number].filter(Boolean).join(' ')
-            || a.pedestrian || a.suburb || item.name || '';
-          const city = a.city || a.town || a.village || a.municipality || '';
-          const country = a.country || '';
-          const detail = [city, a.state, country].filter(Boolean).join(', ');
-
-          row.innerHTML = `
-            <div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-              ${main || detail}
-            </div>
-            <div style="font-size:10px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-              ${main ? detail : item.display_name}
-            </div>`;
-
-          row.addEventListener('mousedown', e => {
-            e.preventDefault();
-            aInp.value = item.display_name;
-            addr.address = item.display_name;
-            // Ulož souřadnice pro GPS optimalizaci
-            addr._lat = parseFloat(item.lat);
-            addr._lon = parseFloat(item.lon);
-            acList.style.display = 'none';
-            stops = []; assignedVehicles = [];
-          });
-          acList.appendChild(row);
-        });
-        acList.style.display = 'block';
-      }
-
-      aInp.addEventListener('blur', () => { setTimeout(() => { acList.style.display = 'none'; }, 150); });
-      aInp.addEventListener('keydown', e => {
-        if (e.key === 'Escape') { acList.style.display = 'none'; return; }
-        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-          const rows = acList.querySelectorAll('div');
-          if (!rows.length) return;
-          e.preventDefault();
-          const active = acList.querySelector('.ac-active');
-          let idx = active ? [...rows].indexOf(active) : -1;
-          if (active) active.classList.remove('ac-active'), active.style.background = '';
-          idx = e.key === 'ArrowDown' ? Math.min(idx+1, rows.length-1) : Math.max(idx-1, 0);
-          rows[idx].classList.add('ac-active');
-          rows[idx].style.background = 'rgba(77,159,255,0.25)';
-        }
-        if (e.key === 'Enter') {
-          const active = acList.querySelector('.ac-active');
-          if (active) { active.dispatchEvent(new MouseEvent('mousedown')); return; }
-        }
+      attachAddressAutocomplete(aInp, (item) => {
+        addr.address = item.display_name;
+        addr._lat = parseFloat(item.lat);
+        addr._lon = parseFloat(item.lon);
+        stops = []; assignedVehicles = [];
+        const g = document.getElementById(`geo_${addr.id}`);
+        if (g) { g.textContent = '✓'; g.style.color = 'var(--green)'; }
       });
 
       acWrap.appendChild(aInp);
-      acWrap.appendChild(acList);
       aHdr.appendChild(acWrap);
 
       const geoStatus = document.createElement('span');
@@ -11503,6 +11584,7 @@ function openNewOrderModal() {
       if (sn) serials[tid] = sn;
     }
     const addrObj = { id: nextId++, address: dlg.querySelector('#noAddress').value.trim(), boxes, serials, rals };
+    if (addrGeo) { addrObj._lat = addrGeo.lat; addrObj._lon = addrGeo.lon; }
     if (Object.keys(batches).length) addrObj.batches = batches;
     orders.push({
       id: nextId++,
@@ -11522,6 +11604,12 @@ function openNewOrderModal() {
     try { saveWorkspace(); } catch (e) {}
     if (window.logAction) window.logAction('akce', `➕ Nová objednávka „${orders[orders.length - 1].name}" (${Object.keys(boxes).length} typů)`);
   });
+
+  // Našeptávač na adrese vykládky + GPS z vybrané adresy
+  let addrGeo = null;
+  const addrInp = dlg.querySelector('#noAddress');
+  attachAddressAutocomplete(addrInp, (item) => { addrGeo = { lat: parseFloat(item.lat), lon: parseFloat(item.lon) }; });
+  addrInp.addEventListener('input', () => { addrGeo = null; });
 
   renderCatalog('');
   renderLines();
@@ -14461,6 +14549,11 @@ async function syncFromServer(silent) {
       if (!fleetById.has(lf.id)) { fleetById.set(lf.id, { ...lf }); addedF++; }
     }
     const mergedFleet = Array.from(fleetById.values());
+    // vehPresets („Auta do výpočtu"): server má přednost — celé nahradit
+    if (Array.isArray(data.vehPresets) && data.vehPresets.length) {
+      VEHICLE_PRESETS = data.vehPresets;
+      try { localStorage.setItem('lozny_veh_presets', JSON.stringify(VEHICLE_PRESETS)); } catch (e) {}
+    }
     // orders: podle id, server-side má precedenci pro stejné id.
     // Lokálně přidávané objednávky projdou remapem typeId (viz idRemap výše).
     const remapKeys = (obj) => {
@@ -14589,6 +14682,7 @@ function pushToServer() {
           deletedOrders:  loadDeleted().orders,
           deletedHistory: loadDeleted().history,
           deletedFleet:   loadDeleted().fleet,
+          vehPresets:     VEHICLE_PRESETS,
           modifiedBy: who
         })
       });
