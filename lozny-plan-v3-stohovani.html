@@ -1522,14 +1522,15 @@ const ORDER_HISTORY_LIMIT  = 30;
 // se starou lokální kopií smazané položky při syncu „vzkřísil" pro všechny.
 const DELETED_KEY = 'elkoplast_deleted_v1';
 function loadDeleted() {
-  try { const d = JSON.parse(localStorage.getItem(DELETED_KEY)) || {}; return { orders: d.orders || [], history: d.history || [] }; }
-  catch (e) { return { orders: [], history: [] }; }
+  try { const d = JSON.parse(localStorage.getItem(DELETED_KEY)) || {}; return { orders: d.orders || [], history: d.history || [], fleet: d.fleet || [] }; }
+  catch (e) { return { orders: [], history: [], fleet: [] }; }
 }
 function saveDeleted(d) {
-  try { localStorage.setItem(DELETED_KEY, JSON.stringify({ orders: (d.orders || []).slice(-2000), history: (d.history || []).slice(-2000) })); } catch (e) {}
+  try { localStorage.setItem(DELETED_KEY, JSON.stringify({ orders: (d.orders || []).slice(-2000), history: (d.history || []).slice(-2000), fleet: (d.fleet || []).slice(-2000) })); } catch (e) {}
 }
 function markOrderDeleted(id)   { const d = loadDeleted(); if (d.orders.indexOf(id)  < 0) { d.orders.push(id);  saveDeleted(d); } }
 function markHistoryDeleted(id) { const d = loadDeleted(); if (d.history.indexOf(id) < 0) { d.history.push(id); saveDeleted(d); } }
+function markFleetDeleted(id)   { const d = loadDeleted(); if (d.fleet.indexOf(id)   < 0) { d.fleet.push(id);   saveDeleted(d); } }
 
 function loadOrderHistory() {
   try { return JSON.parse(localStorage.getItem(ORDER_HISTORY_KEY)) || []; }
@@ -3907,6 +3908,12 @@ function renderFleet() {
   fuelRow.appendChild(fuelInp);
   wrap.appendChild(fuelRow);
 
+  // Uložit změny flotily lokálně i na server (debounce 1 s má pushToServer sám)
+  const persistFleet = () => {
+    try { saveWorkspace(); } catch (e) {}
+    if (typeof pushToServer === 'function') pushToServer();
+  };
+
   _fleetGroups().forEach(grp => {
     const veh = grp.members[0];   // šablona; změny propagujeme na všechny členy skupiny
     try {
@@ -3928,11 +3935,24 @@ function renderFleet() {
 
     const labelWrap = document.createElement('div');
     labelWrap.style.cssText = 'flex:1;min-width:0;';
+    const labelRow = document.createElement('div');
+    labelRow.style.cssText = 'display:flex;align-items:center;gap:5px;';
     const labelInp = document.createElement('input');
     labelInp.value = veh.label;
-    labelInp.style.cssText = 'background:none;border:none;border-bottom:1px solid var(--border);color:var(--text);font-size:13px;font-weight:600;font-family:IBM Plex Sans,sans-serif;width:100%;outline:none;padding-bottom:2px;';
+    labelInp.title = 'Název vozidla — klikni a přepiš (uloží se pro všechny uživatele)';
+    labelInp.style.cssText = 'background:none;border:none;border-bottom:1px dashed var(--border);color:var(--text);font-size:13px;font-weight:600;font-family:IBM Plex Sans,sans-serif;width:100%;outline:none;padding-bottom:2px;';
+    labelInp.addEventListener('focus', () => { labelInp.style.borderBottom = '1px solid var(--accent)'; });
+    labelInp.addEventListener('blur',  () => { labelInp.style.borderBottom = '1px dashed var(--border)'; });
     labelInp.addEventListener('input', () => { veh.label = labelInp.value; _syncFleetGroup(grp); });
-    labelWrap.appendChild(labelInp);
+    labelInp.addEventListener('change', () => { persistFleet(); try { renderVehSelect(); } catch (e) {} });
+    const pen = document.createElement('span');
+    pen.textContent = '✏️';
+    pen.title = 'Upravit název vozidla';
+    pen.style.cssText = 'font-size:11px;opacity:0.45;cursor:pointer;flex-shrink:0;';
+    pen.addEventListener('click', () => { labelInp.focus(); labelInp.select(); });
+    labelRow.appendChild(labelInp);
+    labelRow.appendChild(pen);
+    labelWrap.appendChild(labelRow);
     if (isTrailer) {
       const sub = document.createElement('div');
       sub.style.cssText = 'font-size:9px;color:var(--orange);margin-top:2px;font-family:"IBM Plex Mono",monospace;';
@@ -3951,7 +3971,9 @@ function renderFleet() {
         if (grp.members.length <= 1) return;             // poslední z této skupiny nemažeme přes ±
         const lastId = grp.members[grp.members.length - 1].id;
         fleet = fleet.filter(v => v.id !== lastId);
+        markFleetDeleted(lastId);
         renderFleet();
+        persistFleet();
       });
       const num = document.createElement('span');
       num.textContent = '× ' + grp.members.length;
@@ -3961,6 +3983,7 @@ function renderFleet() {
         const newId = ((fleet || []).reduce((m, v) => Math.max(m, +v.id || 0), 0) || 0) + 1;
         fleet.push({ ...grp.members[0], id: newId });
         renderFleet();
+        persistFleet();
       });
       cntRow.appendChild(lbl); cntRow.appendChild(minus); cntRow.appendChild(num); cntRow.appendChild(plus);
       labelWrap.appendChild(cntRow);
@@ -3970,7 +3993,14 @@ function renderFleet() {
       const del = document.createElement('button');
       del.innerHTML = '✕';
       del.style.cssText = 'background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:3px 6px;border-radius:3px;flex-shrink:0;';
-      del.addEventListener('click', () => { const ids = new Set(grp.members.map(m => m.id)); fleet = fleet.filter(v => !ids.has(v.id)); renderFleet(); });
+      del.addEventListener('click', () => {
+        if (!confirm(`Smazat vozidlo „${veh.label}"${grp.members.length > 1 ? ' (×' + grp.members.length + ')' : ''} pro všechny uživatele?`)) return;
+        const ids = new Set(grp.members.map(m => m.id));
+        fleet = fleet.filter(v => !ids.has(v.id));
+        ids.forEach(id => markFleetDeleted(id));
+        renderFleet();
+        persistFleet();
+      });
       del.addEventListener('mouseenter', () => del.style.color='var(--red)');
       del.addEventListener('mouseleave', () => del.style.color='var(--muted)');
       hdr.appendChild(sil);
@@ -4002,6 +4032,7 @@ function renderFleet() {
           inp.type = 'number'; inp.value = obj[key] || 0;
           inp.style.cssText = 'width:60px;background:var(--bg);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:2px 4px;font-family:"IBM Plex Mono",monospace;font-size:10px;text-align:right;';
           inp.addEventListener('input', () => { obj[key] = +inp.value || 0; _syncFleetGroup(grp); renderFleet(); });
+          inp.addEventListener('change', persistFleet);
           row.appendChild(inp);
           sec.appendChild(row);
         });
@@ -4022,6 +4053,7 @@ function renderFleet() {
         inp.type='number'; inp.value=veh[key];
         inp.style.cssText='width:58px;background:var(--bg);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:2px 4px;font-family:"IBM Plex Mono",monospace;font-size:10px;text-align:right;';
         inp.addEventListener('input', () => { veh[key]=+inp.value||0; _syncFleetGroup(grp); });
+        inp.addEventListener('change', persistFleet);
         fr.appendChild(inp);
         sharedRow.appendChild(fr);
       });
@@ -4054,6 +4086,7 @@ function renderFleet() {
         inp.type='number'; inp.value=veh[key];
         inp.style.cssText='width:58px;background:var(--bg);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:2px 4px;font-family:"IBM Plex Mono",monospace;font-size:10px;text-align:right;';
         inp.addEventListener('input', () => { veh[key]=+inp.value||0; _syncFleetGroup(grp); });
+        inp.addEventListener('change', persistFleet);
         fr.appendChild(inp);
         grid2.appendChild(fr);
       });
@@ -4069,6 +4102,7 @@ function renderFleet() {
     consInp.type = 'number'; consInp.step = '0.5'; consInp.value = veh._spotreba;
     consInp.style.cssText = 'width:58px;background:var(--bg);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:2px 4px;font-family:"IBM Plex Mono",monospace;font-size:10px;text-align:right;';
     consInp.addEventListener('input', () => { veh._spotreba = +consInp.value || 0; _syncFleetGroup(grp); });
+    consInp.addEventListener('change', persistFleet);
     consRow.appendChild(consInp);
     card.appendChild(consRow);
 
@@ -4157,6 +4191,8 @@ function showVehiclePickerFor(veh) {
       Object.assign(veh, preset, { id: veh.id });
       dd.remove();
       renderFleet();
+      try { saveWorkspace(); } catch (e) {}
+      if (typeof pushToServer === 'function') pushToServer();
     });
     dd.appendChild(item);
   });
@@ -10734,6 +10770,8 @@ function setupEventListeners() {
         fleet.push({ ...preset, id: nextId++ });
         dd.remove();
         renderFleet();
+        try { saveWorkspace(); } catch (e) {}
+        if (typeof pushToServer === 'function') pushToServer();
       });
       dd.appendChild(item);
     });
@@ -14389,6 +14427,8 @@ async function syncFromServer(silent) {
     if (data.version <= _lastSharedVersion) return;
 
     // ── MERGE: spojit data podle ID/klíčů ──
+    // Náhrobky: server ∪ lokální; smazané položky se nesmí vrátit z žádné strany
+    const localDel = loadDeleted();
     // boxTypes: podle (název, l, w, h). Dřívější merge jen podle rozměrů způsoboval
     // kolize ID (dva různé typy se stejným ID → „duchové" karty v objednávkách).
     // Kolizi ID řeší nové ID + remap referencí v LOKÁLNÍCH objednávkách.
@@ -14411,12 +14451,16 @@ async function syncFromServer(silent) {
       addedT++;
     }
     // fleet: podle (label,L,W,H)
-    const mergedFleet = [...incomingFleet];
-    const serverFleetKey = new Set(incomingFleet.map(f => `${f.label}|${f.L}|${f.W}|${f.H}`));
+    // fleet: podle ID (server má přednost) + náhrobky. Dřívější párování podle
+    // (label|rozměry) po přejmenování vozidlo zduplikovalo — starý název se vracel.
+    const delFleetSet = new Set([...(data.deletedFleet || []), ...localDel.fleet]);
+    const fleetById = new Map(incomingFleet.filter(f => !delFleetSet.has(f.id)).map(f => [f.id, f]));
     let addedF = 0;
     for (const lf of (fleet || [])) {
-      if (!serverFleetKey.has(`${lf.label}|${lf.L}|${lf.W}|${lf.H}`)) { mergedFleet.push({ ...lf }); addedF++; }
+      if (delFleetSet.has(lf.id)) continue;
+      if (!fleetById.has(lf.id)) { fleetById.set(lf.id, { ...lf }); addedF++; }
     }
+    const mergedFleet = Array.from(fleetById.values());
     // orders: podle id, server-side má precedenci pro stejné id.
     // Lokálně přidávané objednávky projdou remapem typeId (viz idRemap výše).
     const remapKeys = (obj) => {
@@ -14437,11 +14481,9 @@ async function syncFromServer(silent) {
       }));
       return c;
     };
-    // Náhrobky: server ∪ lokální; smazané objednávky se nesmí vrátit z žádné strany
-    const localDel = loadDeleted();
     const delOrdersSet  = new Set([...(data.deletedOrders  || []), ...localDel.orders]);
     const delHistorySet = new Set([...(data.deletedHistory || []), ...localDel.history]);
-    saveDeleted({ orders: Array.from(delOrdersSet), history: Array.from(delHistorySet) });
+    saveDeleted({ orders: Array.from(delOrdersSet), history: Array.from(delHistorySet), fleet: Array.from(delFleetSet) });
     const ordersById = new Map(incomingOrders.filter(o => !delOrdersSet.has(o.id)).map(o => [o.id, o]));
     let addedO = 0;
     for (const lo of (orders || [])) {
@@ -14546,6 +14588,7 @@ function pushToServer() {
           history:  localHistory.slice(0, 30),
           deletedOrders:  loadDeleted().orders,
           deletedHistory: loadDeleted().history,
+          deletedFleet:   loadDeleted().fleet,
           modifiedBy: who
         })
       });
