@@ -63,6 +63,7 @@ function loadShared() {
       data.deletedHistory = data.deletedHistory || [];
       data.deletedFleet   = data.deletedFleet   || [];
       data.vehPresets     = data.vehPresets     || [];
+      data.addrBook       = data.addrBook       || [];
       return data;
     }
   } catch (e) {
@@ -71,7 +72,7 @@ function loadShared() {
   // Default prázdné — klient nahraje vlastní defaulty
   return {
     boxTypes: [], fleet: [], orders: [], team: [], activity: [], history: [],
-    deletedOrders: [], deletedHistory: [], deletedFleet: [], vehPresets: [],
+    deletedOrders: [], deletedHistory: [], deletedFleet: [], vehPresets: [], addrBook: [],
     version: 0, lastModified: null, lastModifiedBy: null
   };
 }
@@ -227,7 +228,8 @@ app.get('/api/shared', (_req, res) => {
     deletedOrders:  sharedState.deletedOrders  || [],
     deletedHistory: sharedState.deletedHistory || [],
     deletedFleet:   sharedState.deletedFleet   || [],
-    vehPresets:     sharedState.vehPresets     || []
+    vehPresets:     sharedState.vehPresets     || [],
+    addrBook:       sharedState.addrBook       || []
   });
 });
 
@@ -250,6 +252,23 @@ app.put('/api/shared', (req, res) => {
   const deletedFleet   = unionIds(sharedState.deletedFleet,   Array.isArray(body.deletedFleet)   ? body.deletedFleet   : []);
   // Editovatelné typy kamionů pro výpočet — celé nahradit, když klient posílá
   const vehPresets = (Array.isArray(body.vehPresets) && body.vehPresets.length) ? body.vehPresets.slice(0, 100) : (sharedState.vehPresets || []);
+  // Adresář použitých adres — union podle adresy (novější last vyhrává), cap 200
+  const addrBook = (() => {
+    const cur = sharedState.addrBook || [];
+    const inc = Array.isArray(body.addrBook) ? body.addrBook : [];
+    const byAddr = new Map(cur.map(e => [e.address, e]));
+    inc.forEach(e => {
+      if (!e || !e.address) return;
+      const ex = byAddr.get(e.address);
+      if (!ex) byAddr.set(e.address, e);
+      else {
+        ex.last = Math.max(ex.last || 0, e.last || 0);
+        ex.count = Math.max(ex.count || 0, e.count || 0);
+        if (ex.lat == null && e.lat != null) { ex.lat = e.lat; ex.lon = e.lon; }
+      }
+    });
+    return Array.from(byAddr.values()).sort((a, b) => (b.last || 0) - (a.last || 0)).slice(0, 200);
+  })();
   // Velikostní limity (proti přetížení)
   if (body.boxTypes.length > 1000) return res.status(400).json({ error: 'boxTypes přes 1000 položek' });
   if (body.fleet.length    > 200)  return res.status(400).json({ error: 'fleet přes 200 položek' });
@@ -271,7 +290,7 @@ app.put('/api/shared', (req, res) => {
     orders:  orders.filter(o => !delOrdersSet.has(o.id)),
     team, activity,
     history: history.filter(h => !delHistorySet.has(h.id)),
-    deletedOrders, deletedHistory, deletedFleet, vehPresets
+    deletedOrders, deletedHistory, deletedFleet, vehPresets, addrBook
   };
   const saved = saveShared(sharedState);
   console.log(`📝 /api/shared PUT: v${sharedState.version} by ${sharedState.lastModifiedBy} ` +
