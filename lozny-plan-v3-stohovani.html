@@ -1528,6 +1528,17 @@ function loadDeleted() {
 function saveDeleted(d) {
   try { localStorage.setItem(DELETED_KEY, JSON.stringify({ orders: (d.orders || []).slice(-2000), history: (d.history || []).slice(-2000), fleet: (d.fleet || []).slice(-2000) })); } catch (e) {}
 }
+// nextId nesmí nikdy vydat ID, které už někde existuje NEBO je v náhrobcích —
+// recyklované ID smazané objednávky by server odfiltroval (nová objednávka by „zmizela").
+function bumpNextId() {
+  let m = nextId;
+  const scan = (x) => { const n = +x; if (isFinite(n)) m = Math.max(m, n + 1); };
+  (orders   || []).forEach(o => { scan(o.id); (o.addresses || []).forEach(a => scan(a.id)); });
+  (boxTypes || []).forEach(t => scan(t.id));
+  (fleet    || []).forEach(v => scan(v.id));
+  try { const d = loadDeleted(); d.orders.forEach(scan); d.fleet.forEach(scan); } catch (e) {}
+  nextId = m;
+}
 function markOrderDeleted(id)   { const d = loadDeleted(); if (d.orders.indexOf(id)  < 0) { d.orders.push(id);  saveDeleted(d); } }
 function markHistoryDeleted(id) { const d = loadDeleted(); if (d.history.indexOf(id) < 0) { d.history.push(id); saveDeleted(d); } }
 function markFleetDeleted(id)   { const d = loadDeleted(); if (d.fleet.indexOf(id)   < 0) { d.fleet.push(id);   saveDeleted(d); } }
@@ -4660,6 +4671,7 @@ function attachAddressAutocomplete(inp, onPick) {
 // RENDER ORDERS
 // ══════════════════════════════════════════════════════
 function renderOrders() {
+  try { bumpNextId(); } catch (e) {}
   const list = document.getElementById('ordersList');
   if (!list) return;
   list.innerHTML = '';
@@ -14616,6 +14628,7 @@ async function syncFromServer(silent) {
     fleet = mergedFleet;
     orders = mergedOrders;
     rebuildBoxTypeMap();
+    bumpNextId();
     if (typeof saveActivityLog === 'function')   saveActivityLog(mergedActivity);
     if (typeof saveOrderHistoryList === 'function') saveOrderHistoryList(mergedHistory);
     // team uložím do localStorage zvlášť pro UI
