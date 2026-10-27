@@ -4632,6 +4632,31 @@ window.addEventListener('scroll', (e) => {
   document.querySelectorAll('.addr-ac-list').forEach(l => { if (e.target !== l) l.remove(); });
 }, true);
 
+// Photon (photon.komoot.io) — fuzzy geokodér dělaný pro našeptávání: toleruje
+// pořadí „město, ulice", překlepy i česká jména zemí. Výsledek mapujeme na
+// tvar položky Nominatimu, aby zbytek kódu zůstal stejný.
+async function photonSearch(q, limit, signal) {
+  const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=${limit || 6}&lang=en&lat=49.99&lon=17.46`;
+  const r = await fetch(url, signal ? { signal } : undefined);
+  const data = await r.json();
+  const seen = new Set();
+  return (data.features || []).map(f => {
+    const pr = f.properties || {};
+    const road = pr.street || (pr.osm_key === 'highway' ? pr.name : '') || '';
+    const city = pr.city || pr.town || pr.village || pr.municipality
+      || (['city', 'town', 'village'].indexOf(pr.osm_value) >= 0 ? pr.name : '') || '';
+    const main = [road, pr.housenumber].filter(Boolean).join(' ') || pr.name || '';
+    const parts = []; [main, city, pr.postcode, pr.state, pr.country].forEach(x => { if (x && parts.indexOf(x) < 0) parts.push(x); });
+    return {
+      lat: f.geometry && f.geometry.coordinates[1],
+      lon: f.geometry && f.geometry.coordinates[0],
+      display_name: parts.join(', '),
+      name: pr.name || '',
+      address: { road, house_number: pr.housenumber, city, state: pr.state, country: pr.country },
+    };
+  }).filter(it => { if (!it.lat || seen.has(it.display_name)) return false; seen.add(it.display_name); return true; });
+}
+
 function attachAddressAutocomplete(inp, onPick) {
   inp.autocomplete = 'off';
   let list = null, timer = null, controller = null;
@@ -4709,13 +4734,17 @@ function attachAddressAutocomplete(inp, onPick) {
     if (controller) controller.abort();
     controller = new AbortController();
     try {
-      // Nominatim chce „ulice, město" — při zápisu „město, ulice" zkusíme i prohozenou variantu
+      // Photon je fuzzy (toleruje „město, ulice" i překlepy) → první volba
       let data = [];
-      for (const variant of addressQueryVariants(q)) {
-        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(variant)}&format=json&limit=6&addressdetails=1&countrycodes=cz,sk,de,at,pl,hu,ch,fr,it,nl,be,dk,se,no,fi,es,pt,ro,bg,hr,si,ee,lv,lt`;
-        const r = await fetch(url, { signal: controller.signal, headers: { 'Accept-Language': 'cs,en' } });
-        data = await r.json();
-        if (data && data.length) break;
+      try { data = await photonSearch(q, 6, controller.signal); } catch (e) { if (e.name === 'AbortError') throw e; }
+      if (!data.length) {
+        // Záloha: Nominatim, při zápisu „město, ulice" i prohozená varianta
+        for (const variant of addressQueryVariants(q)) {
+          const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(variant)}&format=json&limit=6&addressdetails=1&countrycodes=cz,sk,de,at,pl,hu,ch,fr,it,nl,be,dk,se,no,fi,es,pt,ro,bg,hr,si,ee,lv,lt`;
+          const r = await fetch(url, { signal: controller.signal, headers: { 'Accept-Language': 'cs,en' } });
+          data = await r.json();
+          if (data && data.length) break;
+        }
       }
       render(data);
     } catch (e) { if (e.name !== 'AbortError') close(); }
@@ -11039,6 +11068,15 @@ async function geocodeAddress(address) {
     } catch (e) { /* offline / quota / parse error */ }
     await new Promise(r => setTimeout(r, 1100));   // rate-limit Nominatim před další variantou
   }
+  // Poslední záchrana: fuzzy Photon (zvládne „město, ulice" i překlepy)
+  try {
+    const ph = await photonSearch(address, 1);
+    if (ph.length) {
+      const result = { lat: ph[0].lat, lon: ph[0].lon, display: ph[0].display_name };
+      _geocodeCache.set(address, result);
+      return result;
+    }
+  } catch (e) {}
   _geocodeCache.set(address, null);   // negative cache, neopakovat dotaz
   return null;
 }
