@@ -4709,9 +4709,15 @@ function attachAddressAutocomplete(inp, onPick) {
     if (controller) controller.abort();
     controller = new AbortController();
     try {
-      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=6&addressdetails=1&countrycodes=cz,sk,de,at,pl,hu,ch,fr,it,nl,be,dk,se,no,fi,es,pt,ro,bg,hr,si,ee,lv,lt`;
-      const r = await fetch(url, { signal: controller.signal, headers: { 'Accept-Language': 'cs,en' } });
-      render(await r.json());
+      // Nominatim chce „ulice, město" — při zápisu „město, ulice" zkusíme i prohozenou variantu
+      let data = [];
+      for (const variant of addressQueryVariants(q)) {
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(variant)}&format=json&limit=6&addressdetails=1&countrycodes=cz,sk,de,at,pl,hu,ch,fr,it,nl,be,dk,se,no,fi,es,pt,ro,bg,hr,si,ee,lv,lt`;
+        const r = await fetch(url, { signal: controller.signal, headers: { 'Accept-Language': 'cs,en' } });
+        data = await r.json();
+        if (data && data.length) break;
+      }
+      render(data);
     } catch (e) { if (e.name !== 'AbortError') close(); }
   };
   inp.addEventListener('input', () => {
@@ -11003,20 +11009,36 @@ const ORIGIN = { name: 'Bruntál, Česká republika', lat: 49.9882, lon: 17.4641
 // Globální cache souřadnic adres — sdílená napříč voláními, šetří Nominatim API
 const _geocodeCache = new Map();   // address → {lat, lon, display}
 
+// Nominatim vyžaduje pořadí „ulice, město, …" — zápis „město, ulice, …"
+// (běžný v objednávkách, např. „Reconvilier, Rue du Moulin 40, 2732, Švýcarsko")
+// nenajde vůbec. Vrátí varianty dotazu: originál + prohozené první dvě části.
+function addressQueryVariants(address) {
+  const out = [String(address || '').trim()];
+  const parts = out[0].split(',').map(x => x.trim()).filter(Boolean);
+  if (parts.length >= 2) {
+    const swapped = [parts[1], parts[0]].concat(parts.slice(2)).join(', ');
+    if (swapped !== out[0]) out.push(swapped);
+  }
+  return out;
+}
+
 async function geocodeAddress(address) {
   if (!address) return null;
   // Cache hit
   if (_geocodeCache.has(address)) return _geocodeCache.get(address);
-  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`;
-  try {
-    const res = await fetch(url, { headers: { 'Accept-Language': 'cs,en' } });
-    const data = await res.json();
-    if (data && data.length > 0) {
-      const result = { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon), display: data[0].display_name };
-      _geocodeCache.set(address, result);
-      return result;
-    }
-  } catch (e) { /* offline / quota / parse error */ }
+  for (const q of addressQueryVariants(address)) {
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`;
+    try {
+      const res = await fetch(url, { headers: { 'Accept-Language': 'cs,en' } });
+      const data = await res.json();
+      if (data && data.length > 0) {
+        const result = { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon), display: data[0].display_name };
+        _geocodeCache.set(address, result);
+        return result;
+      }
+    } catch (e) { /* offline / quota / parse error */ }
+    await new Promise(r => setTimeout(r, 1100));   // rate-limit Nominatim před další variantou
+  }
   _geocodeCache.set(address, null);   // negative cache, neopakovat dotaz
   return null;
 }
