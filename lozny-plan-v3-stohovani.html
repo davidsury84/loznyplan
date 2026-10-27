@@ -2229,7 +2229,8 @@ function flattenStops() {
         orderName: order.name,
         orderColor: order.color,
         customer: order.customer || '',                // název firmy odběratele
-        orderNo:  order.orderNo  || '',                // číslo objednávky
+        orderNo:  order.orderNo  || '',                // BESTELLUNG (obj. zákazníka)
+        heliosNo: order.heliosNo || '',                // HELIOS (naše č. zakázky / ČVZ)
         serials:  { ...(addr.serials || {}) },         // výrobní čísla per typeId
         rals:     { ...(addr.rals || {}) },            // RAL barvy per typeId
         batches:  addr.batches ? JSON.parse(JSON.stringify(addr.batches)) : undefined, // dávky per typeId (qty/ral/serials)
@@ -4769,19 +4770,28 @@ function renderOrders() {
     badge.textContent = `OBJ ${oi + 1}`;
     hdr.appendChild(badge);
 
-    const noInp = document.createElement('input');
-    noInp.className = 'order-name-input';
-    noInp.placeholder = 'Č. obj.';
-    noInp.title = 'Číslo objednávky';
-    noInp.value = order.orderNo || '';
-    noInp.style.cssText = 'max-width:140px;flex:0 0 auto;font-family:IBM Plex Mono,monospace;' +
-      'border:2px solid var(--accent,#f0c040);background:rgba(240,192,64,0.10);color:var(--accent,#f0c040);' +
-      'font-weight:700;font-size:13px;padding:5px 9px;border-radius:5px;letter-spacing:0.3px;' +
-      'box-shadow:0 0 0 3px rgba(240,192,64,0.08);';
-    noInp.addEventListener('focus', () => { noInp.style.boxShadow = '0 0 0 4px rgba(240,192,64,0.25)'; });
-    noInp.addEventListener('blur',  () => { noInp.style.boxShadow = '0 0 0 3px rgba(240,192,64,0.08)'; });
-    noInp.addEventListener('input', () => { order.orderNo = noInp.value; });
-    hdr.appendChild(noInp);
+    // Dvě ČÍSLA objednávky — striktně odlišená: BESTELLUNG (objednávka zákazníka,
+    // např. B260111) × HELIOS (naše číslo zakázky z Heliosu / ČVZ)
+    const makeNoField = (caption, key, ph, titleTxt, color, bg) => {
+      const w = document.createElement('div');
+      w.style.cssText = 'display:flex;flex-direction:column;gap:1px;flex:0 0 auto;';
+      const cap = document.createElement('span');
+      cap.textContent = caption;
+      cap.style.cssText = `font-size:8px;letter-spacing:1.2px;font-weight:700;color:${color};font-family:'IBM Plex Mono',monospace;text-transform:uppercase;padding-left:3px;`;
+      const inp = document.createElement('input');
+      inp.className = 'order-name-input';
+      inp.placeholder = ph;
+      inp.title = titleTxt;
+      inp.value = order[key] || '';
+      inp.style.cssText = `max-width:130px;flex:0 0 auto;font-family:IBM Plex Mono,monospace;border:2px solid ${color};background:${bg};color:${color};font-weight:700;font-size:13px;padding:4px 9px;border-radius:5px;letter-spacing:0.3px;`;
+      inp.addEventListener('input', () => { order[key] = inp.value; });
+      w.appendChild(cap); w.appendChild(inp);
+      return w;
+    };
+    hdr.appendChild(makeNoField('Bestellung', 'orderNo', 'B26xxxx',
+      'BESTELLUNG — číslo objednávky zákazníka (z Bestellungu)', 'var(--accent,#c29113)', 'rgba(240,192,64,0.10)'));
+    hdr.appendChild(makeNoField('Helios', 'heliosNo', 'č. Helios',
+      'HELIOS — naše číslo zakázky z Heliosu (ČVZ)', 'var(--purple,#7a4fd0)', 'rgba(122,79,208,0.08)'));
 
     // Kolonka „Název firmy" — odběratel/zákazník, propisuje se do přepravenky
     const custInp = document.createElement('input');
@@ -9202,7 +9212,7 @@ function renderPlanView() {
                 const legendItems = vstopsList.map(u => {
                   const st = (typeof stops !== 'undefined' && stops) ? stops[u.stopIdx] : null;
                   const firma = (st && st.customer) ? st.customer : '';
-                  const obj = (st && st.orderNo) ? `obj. ${st.orderNo}` : '';
+                  const obj = [st && st.orderNo ? `Best. ${st.orderNo}` : '', st && st.heliosNo ? `Helios ${st.heliosNo}` : ''].filter(Boolean).join(' · ');
                   const cnt = stopBoxCounts[u.stopIdx] || 0;
                   const adr = u.stopName || (st && st.name) || '';
                   const shortAdr = adr.length > 60 ? adr.slice(0, 60) + '…' : adr;
@@ -11147,6 +11157,7 @@ async function optimizeRoute() {
         orderColor: order.color,
         customer: order.customer || '',
         orderNo:  order.orderNo  || '',
+        heliosNo: order.heliosNo || '',
         serials:  { ...(addr.serials || {}) },
         rals:     { ...(addr.rals || {}) },
         batches:  addr.batches ? JSON.parse(JSON.stringify(addr.batches)) : undefined,
@@ -11536,10 +11547,11 @@ function openNewOrderModal() {
       <span style="font-size:11px;color:var(--muted);">klikni na výrobek vlevo → přidá se do objednávky · stejný výrobek podruhé = další dávka (jiné RAL / výr. č.)</span>
       <button id="noClose" title="Zavřít (Esc)" style="margin-left:auto;background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1;">✕</button>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:12px 20px;border-bottom:1px solid var(--border);flex-shrink:0;">
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:12px 20px;border-bottom:1px solid var(--border);flex-shrink:0;">
       <label style="${LBL}">Název objednávky<input id="noName" placeholder="např. Schneider" style="${INP}"></label>
       <label style="${LBL}">Odběratel (firma)<input id="noCustomer" placeholder="název firmy" style="${INP}"></label>
-      <label style="${LBL}">Číslo objednávky<input id="noOrderNo" placeholder="např. 2026-0451" style="${INP}"></label>
+      <label style="${LBL}"><span style="color:var(--accent)">Bestellung (obj. zákazníka)</span><input id="noOrderNo" placeholder="např. B260136" style="${INP}"></label>
+      <label style="${LBL}"><span style="color:var(--purple,#7a4fd0)">Číslo Helios (ČVZ)</span><input id="noHeliosNo" placeholder="např. 26B-123" style="${INP}"></label>
       <label style="${LBL}">Adresa vykládky<input id="noAddress" placeholder="ulice, město, země" style="${INP}"></label>
     </div>
     <div style="display:flex;flex:1;min-height:0;">
@@ -11696,6 +11708,7 @@ function openNewOrderModal() {
     orders.push({
       id: nextId++,
       orderNo:  dlg.querySelector('#noOrderNo').value.trim(),
+      heliosNo: dlg.querySelector('#noHeliosNo').value.trim(),
       customer: dlg.querySelector('#noCustomer').value.trim(),
       name:     dlg.querySelector('#noName').value.trim() || `Objednávka ${idx + 1}`,
       color: ORDER_COLORS[idx % ORDER_COLORS.length],
@@ -15448,6 +15461,7 @@ function exportStressCsv() {
         si, name: stopName(si),
         customer: st.customer || '',
         orderNo:  st.orderNo  || '',
+        heliosNo: st.heliosNo || '',
         lines: Object.keys(byStop[si]).sort((a, b) => {
           const ord = (st.boxOrder || []);
           const ia = ord.indexOf(+a), ib = ord.indexOf(+b);
@@ -15735,7 +15749,7 @@ function exportStressCsv() {
               `<tr><td style="padding:3px 6px;border:1px solid #ddd;">${l.count}×</td><td style="padding:3px 6px;border:1px solid #ddd;">${esc(l.t.name)}${l.ral ? ` <span style="color:#777;font-size:10px;">· ${esc(l.ral)}</span>` : ''}</td><td style="padding:3px 6px;border:1px solid #ddd;">${l.t.l}×${l.t.w}×${l.t.h} mm</td><td style="padding:3px 6px;border:1px solid #ddd;font-family:'Courier New',monospace;font-size:10px;color:#555;">${esc(l.serial || '—')}</td><td style="padding:3px 6px;border:1px solid #ddd;text-align:right;">${l.count * l.t.kg} kg</td></tr>`
             ).join('');
             const hours = shared.hoursBySi[s.si];
-            const custLine = s.customer ? `<div style="font-size:11px;color:#0d6e4e;font-weight:600;margin-top:2px;">🏢 ${esc(s.customer)}${s.orderNo ? ` <span style="color:#888;font-weight:400;">· obj. č. ${esc(s.orderNo)}</span>` : ''}</div>` : '';
+            const custLine = s.customer ? `<div style="font-size:11px;color:#0d6e4e;font-weight:600;margin-top:2px;">🏢 ${esc(s.customer)}${s.orderNo ? ` <span style="color:#888;font-weight:400;">· Bestellung ${esc(s.orderNo)}</span>` : ''}${s.heliosNo ? ` <span style="color:#7a4fd0;font-weight:600;">· Helios ${esc(s.heliosNo)}</span>` : ''}</div>` : '';
             return `<div style="margin:8px 0;">
               <div style="font-size:12px;font-weight:600;color:#0d6e4e;margin-bottom:4px;">${i + 1}. vykládka — ${esc(s.name)}${hours ? ` <span style="color:#888;font-weight:400;">· prac. doba ${esc(hours)}</span>` : ''}</div>
               ${custLine}
@@ -15983,7 +15997,7 @@ function exportStressCsv() {
           `<tr><td>${l.count}×</td><td>${volClass(l.t)}</td><td>${fmtDims(l.t)}</td><td>${esc(l.t.name)}${l.ral ? ` · ${esc(l.ral)}` : ''}</td><td style="font-family:'Courier New',monospace;font-size:9px;">${esc(l.serial || '—')}</td><td class="r">${l.t.kg}</td><td class="r">${l.count * l.t.kg}</td></tr>`
         ).join('');
         const hours = sh.hoursBySi[s.si], zak = sh.zakBySi[s.si], vyd = sh.vydBySi[s.si];
-        const custLine = s.customer ? `<div style="font-size:10px;color:#0d6e4e;font-weight:600;margin-top:2px;">🏢 ${esc(s.customer)}${s.orderNo ? ` <span style="color:#888;font-weight:400;">· obj. č. ${esc(s.orderNo)}</span>` : ''}</div>` : '';
+        const custLine = s.customer ? `<div style="font-size:10px;color:#0d6e4e;font-weight:600;margin-top:2px;">🏢 ${esc(s.customer)}${s.orderNo ? ` <span style="color:#888;font-weight:400;">· Bestellung ${esc(s.orderNo)}</span>` : ''}${s.heliosNo ? ` <span style="color:#7a4fd0;font-weight:600;">· Helios ${esc(s.heliosNo)}</span>` : ''}</div>` : '';
         return `<div class="stop">
           <div class="stoph"><b>${i + 1}. vykládka</b> — ${esc(s.name)}
             ${hours ? `<span class="mut"> · prac. doba ${esc(hours)}</span>` : ''}
